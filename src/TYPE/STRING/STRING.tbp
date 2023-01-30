@@ -1,0 +1,3 @@
+@name('Строка')
+@tag('CORE')
+class STRING is string(128);
