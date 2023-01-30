@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MethodPresentation classId="PR_CRED" formatVersion="1.2" shortName="S92_PREF_CF">
+    <Properties>
+        <InterpretBufferCommands>true</InterpretBufferCommands>
+        <RunMonitor>true</RunMonitor>
+    </Properties>
+    <Parameters/>
+    <Variables/>
+    <Controls>
+        <Form>
+            <Properties>
+                <Caption>S92. Определение льготного коэффициента</Caption>
+                <Height>168</Height>
+                <ValidateName>Form1</ValidateName>
+                <Width>685</Width>
+            </Properties>
+            <Controls>
+                <Label>
+                    <Properties>
+                        <Caption>Код</Caption>
+                        <Height>24</Height>
+                        <Left>8</Left>
+                        <Qualifier>%PARAM%.P_CODE</Qualifier>
+                        <Tips>Поясняющая надпись (Код)</Tips>
+                        <Top>8</Top>
+                        <ValidateName>Label1</ValidateName>
+                        <Width>224</Width>
+                    </Properties>
+                </Label>
+                <Text>
+                    <Properties>
+                        <ClassId>STRING_50</ClassId>
+                        <Height>24</Height>
+                        <Left>240</Left>
+                        <Qualifier>%PARAM%.P_CODE</Qualifier>
+                        <TabIndex>2</TabIndex>
+                        <Tips>Код</Tips>
+                        <Top>8</Top>
+                        <ValidateName>Text1</ValidateName>
+                        <Width>437</Width>
+                    </Properties>
+                </Text>
+                <Object>
+                    <Properties>
+                        <Caption>Документ</Caption>
+                        <ClassId>DOCUMENT_REF</ClassId>
+                        <Height>24</Height>
+                        <Left>8</Left>
+                        <Qualifier>%PARAM%.P_DOC</Qualifier>
+                        <TabIndex>3</TabIndex>
+                        <Tips>Объект: Документ</Tips>
+                        <Top>40</Top>
+                        <ValidateName>Object1</ValidateName>
+                        <Width>224</Width>
+                    </Properties>
+                </Object>
+                <Object>
+                    <Properties>
+                        <Caption>Продукт</Caption>
+                        <ClassId>PRODUCT_REF</ClassId>
+                        <Height>24</Height>
+                        <Left>8</Left>
+                        <Qualifier>%PARAM%.P_PROD</Qualifier>
+                        <TabIndex>4</TabIndex>
+                        <Tips>Объект: Продукт</Tips>
+                        <Top>72</Top>
+                        <ValidateName>Object2</ValidateName>
+                        <Width>224</Width>
+                    </Properties>
+                </Object>
+                <Label>
+                    <Properties>
+                        <Caption>Дополнительные параметры</Caption>
+                        <Height>24</Height>
+                        <Left>8</Left>
+                        <Qualifier>%PARAM%.P_ADD_PAR</Qualifier>
+                        <Tips>Поясняющая надпись (Дополнительные параметры)</Tips>
+                        <Top>104</Top>
+                        <ValidateName>Label2</ValidateName>
+                        <Width>224</Width>
+                    </Properties>
+                </Label>
+                <Text>
+                    <Properties>
+                        <ClassId>STRING_32000</ClassId>
+                        <Height>24</Height>
+                        <Left>240</Left>
+                        <Qualifier>%PARAM%.P_ADD_PAR</Qualifier>
+                        <TabIndex>6</TabIndex>
+                        <Tips>Дополнительные параметры</Tips>
+                        <Top>104</Top>
+                        <ValidateName>Text2</ValidateName>
+                        <Width>437</Width>
+                    </Properties>
+                </Text>
+                <Button>
+                    <Properties>
+                        <Caption>OK</Caption>
+                        <Height>24</Height>
+                        <Left>389</Left>
+                        <Qualifier>OK</Qualifier>
+                        <TabIndex>7</TabIndex>
+                        <Tips>Выполнить операцию</Tips>
+                        <Top>136</Top>
+                        <ValidateName>Ok</ValidateName>
+                        <Width>140</Width>
+                    </Properties>
+                </Button>
+                <Button>
+                    <Properties>
+                        <Caption>Отмена</Caption>
+                        <Height>24</Height>
+                        <Left>537</Left>
+                        <Qualifier>CANCEL</Qualifier>
+                        <TabIndex>8</TabIndex>
+                        <Tips>Отказ от выполнения</Tips>
+                        <Top>136</Top>
+                        <ValidateName>Cancel</ValidateName>
+                        <Width>140</Width>
+                    </Properties>
+                </Button>
+                <Number>
+                    <Properties>
+                        <Caption>Номер</Caption>
+                        <ClassId>NUMBER_DOC</ClassId>
+                        <Depend>%PARAM%.P_DOC</Depend>
+                        <Height>24</Height>
+                        <Left>240</Left>
+                        <Qualifier>%PARAM%.P_DOC.DOCUMENT_NUM</Qualifier>
+                        <TabIndex>0</TabIndex>
+                        <Tips>Номер</Tips>
+                        <Top>40</Top>
+                        <ValidateName>Number1</ValidateName>
+                        <Width>436</Width>
+                    </Properties>
+                </Number>
+                <Label>
+                    <Properties>
+                        <Caption>Номер договора</Caption>
+                        <Depend>%PARAM%.P_PROD</Depend>
+                        <Height>24</Height>
+                        <Left>240</Left>
+                        <Qualifier>%PARAM%.P_PROD.NUM_DOG</Qualifier>
+                        <Tips>Поясняющая надпись (Номер договора)</Tips>
+                        <Top>72</Top>
+                        <ValidateName>Label3</ValidateName>
+                        <Width>140</Width>
+                    </Properties>
+                </Label>
+                <Text>
+                    <Properties>
+                        <ClassId>PRODUCT_NUM</ClassId>
+                        <Depend>%PARAM%.P_PROD</Depend>
+                        <Height>24</Height>
+                        <Left>388</Left>
+                        <Qualifier>%PARAM%.P_PROD.NUM_DOG</Qualifier>
+                        <TabIndex>0</TabIndex>
+                        <Tips>Номер договора</Tips>
+                        <Top>72</Top>
+                        <ValidateName>Text3</ValidateName>
+                        <Width>288</Width>
+                    </Properties>
+                </Text>
+            </Controls>
+        </Form>
+    </Controls>
+</MethodPresentation>

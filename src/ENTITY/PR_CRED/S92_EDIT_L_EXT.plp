@@ -1,0 +1,96 @@
+class PR_CRED;
+
+@import_plsql(true)
+@name('S92. Редактировать договор. Расширение') 
+@tag('EXTENSION')
+method S92_EDIT_L_EXT instead of S92_EDIT_LAST is
+pragma include (::[DEBUG_TRIGGER].MACRO_LIB);
+
+S92_EDIT_L_EXT
+(
+	@name('Категория ссуды')
+	P_CR_CATEG in [S92_CR_CATEG_REF]
+)
+	 is
+
+validate is 
+begin
+	&BASE$SETVARS;
+	&BASE$VALIDATE;
+	&BASE$GETVARS;
+	if p_message = 'DEFAULT' then
+		begin
+			-- Заполняем параметр операции значениями из справочника ::[S92_CR_TO_CATEG]
+			P_CR_CATEG := ::[S92_CR_TO_CATEG]([CREDIT] = this%id and ([END] is null or [END] = ::[SYSTEM].[OP_DATE])).[CATEGORY];
+		exception when NO_DATA_FOUND then
+			null;
+		end;
+	end if;
+end;
+
+execute is 
+rRef_update ref [S92_CR_TO_CATEG];
+rRef_delete ref [S92_CR_TO_CATEG];
+rRef_create ref [S92_CR_TO_CATEG];
+
+begin
+	&BASE$SETVARS;
+	&BASE$EXECUTE;
+	&debug('Начало операции [' || &METHOD$SNAME || '] ' || &METHOD$NAME, 0)
+	&debug('Работаем с КД, которому соотвествует запись с id= ' || this%id || ', в справочнике [S92_CR_TO_CATEG]', 0)
+	
+	begin
+		/*Проставляем дату закрытия у уже существующих записей в справочнике ::[S92_CR_TO_CATEG], 
+		 * исходя из логики, прописанной при добавлении записей в справочник, запись с пустой датой окончания может быть только одна для соотвествующего КД
+		 */ 
+		update a (a.[END] = ::[SYSTEM].[OP_DATE] - interval('1', 'day')) in ::[S92_CR_TO_CATEG] all
+		where a.[CREDIT] = this%id and a.[END] is null
+		return a into rRef_update;
+		
+		if rRef_update is null then
+			&debug('В справочнике [S92_CR_TO_CATEG] нету записей для данного договора, обновление данных не требуется', 0)
+		else
+			&debug('После обновления данных запись в справочнике [S92_CR_TO_CATEG] приняла значение id= ' || rRef_update%id, 0)
+		end if;
+	end;
+	
+	begin
+		-- Удаляем записи из справочника ::[S92_CR_TO_CATEG], если дата открытия больше либо равна операционной дате
+		delete a in ::[S92_CR_TO_CATEG] all
+		where a.[CREDIT] = this%id and a.[START] >= ::[SYSTEM].[OP_DATE] 
+		return a into rRef_delete;
+		
+		if rRef_delete is null then
+			&debug('В справочнике [S92_CR_TO_CATEG] нету записей для данного договора, удаление данных не требуется', 0)
+		else
+			&debug('Была удалена запись из справочника [S92_CR_TO_CATEG] с id= ' || rRef_delete%id, 0)
+		end if;
+		
+		exception when TOO_MANY_ROWS then
+			&debug('В справочнике [S92_CR_TO_CATEG] несколько записей для данного договора c датой открытия больше либо равной операционной дате, удаляем все эти записи', 0)
+			delete a in ::[S92_CR_TO_CATEG] all
+			where a.[CREDIT] = this%id;
+	end;
+	
+	begin
+		-- Добавляем новую запись в справочник ::[S92_CR_TO_CATEG] с текущей операционной датой
+		if P_CR_CATEG is not null then
+			::[S92_CR_TO_CATEG].[NEW_AUTO](
+											P_CREDIT==this%id -- Кредит
+											,P_START==::[SYSTEM].[OP_DATE] -- Дата начала
+											,P_END==null -- Дата окончания
+											,P_CATEGORY==P_CR_CATEG -- Категория
+											);	
+			
+			-- Делаем выборку, чтобы показать в отладке что запись создалась в справочнике
+			select a(a) in ::[S92_CR_TO_CATEG] all
+			where a.[CREDIT] = this%id and a.[START] = ::[SYSTEM].[OP_DATE] and a.[END] is null and a.[CATEGORY] = P_CR_CATEG
+			into rRef_create;
+			&debug('Была создана новая запись в справочнике [S92_CR_TO_CATEG] с id= ' || rRef_create%id, 0)							
+		end if;
+	end;
+	
+end;
+
+end; 
+end;

@@ -1,0 +1,42 @@
+class PR_CRED;
+
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('S92. Открыть договор. Расширение') 
+@tag('EXTENSION')
+constructor S92_NEW_D_N_EXT instead of S92_NEW_DOG_N is
+
+S92_NEW_D_N_EXT 
+
+(
+	@name('Категория ссуды')
+	P_CR_CATEG in [S92_CR_CATEG_REF]
+) 
+
+	return ref [PR_CRED] is
+
+validate is
+
+begin
+	&BASE$SETVARS;
+	&BASE$VALIDATE;
+	&BASE$GETVARS;
+end;
+
+execute is
+
+begin
+	&BASE$SETVARS;
+	&BASE$EXECUTE;
+	if P_CR_CATEG is not null then
+		::[S92_CR_TO_CATEG].[NEW_AUTO](
+										P_CREDIT==this%id -- Кредит
+										,P_START==::[SYSTEM].[OP_DATE] -- Дата начала
+										,P_END==null -- Дата окончания
+										,P_CATEGORY==P_CR_CATEG -- Категория
+										);
+	end if;
+end;
+
+end; 
+end; 

@@ -1,0 +1,50 @@
+class PR_CRED;
+
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('S92. Удалить договор. Расширение')
+@tag('EXTENSION')
+destructor S92_DELETE_EXT instead of S92_DELETE#AUTO is
+pragma include (::[DEBUG_TRIGGER].MACRO_LIB);
+
+S92_DELETE_EXT 
+
+	 is
+	
+validate is
+
+begin
+	&BASE$SETVARS;
+	&BASE$VALIDATE;
+	&BASE$GETVARS;
+end;
+	
+execute is
+rRef ref [S92_CR_TO_CATEG];
+
+begin
+	&debug('Начало операции [' || &METHOD$SNAME || '] ' || &METHOD$NAME, 0)
+	
+	begin
+		delete a in ::[S92_CR_TO_CATEG] all
+		where a.[CREDIT] = this%id
+		return a into rRef;
+		
+		if rRef is null then
+			&debug('В справочнике [S92_CR_TO_CATEG] нету записей, соответвующих выбранному КД', 0)
+		else
+			&debug('В справочнике [S92_CR_TO_CATEG] была удалена запись с id= ' || rRef%id ||  ', соответвующая выбранному КД', 0)
+		end if;
+		
+		exception when TOO_MANY_ROWS then 
+			&debug('В справочнике [S92_CR_TO_CATEG] несколько записей для данного договора, удаляем все эти записи', 0)
+			delete a in ::[S92_CR_TO_CATEG] all
+			where a.[CREDIT] = this%id;
+	end;
+
+	&BASE$SETVARS;
+	&BASE$EXECUTE;
+end;
+
+end; 
+end; 

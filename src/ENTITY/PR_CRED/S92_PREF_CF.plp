@@ -1,0 +1,61 @@
+class PR_CRED;
+
+@name('S92. Определение льготного коэффициента') 
+static method S92_PREF_CF is
+
+pragma include (::[DEBUG_TRIGGER].MACRO_LIB);
+
+S92_PREF_CF
+(
+	@name('Код')
+	P_CODE in [STRING_50],
+	@name('Документ')
+	P_DOC in [DOCUMENT_REF],
+	@name('Продукт')
+	P_PROD in [PRODUCT_REF],
+	@name('Дополнительные параметры')
+	P_ADD_PAR in [STRING_32000]
+) return [STRING_10]
+
+	 is
+
+validate is
+begin
+	if P_MESSAGE = 'DEFAULT' then
+		null;
+	end if;
+end;
+
+execute is
+/*
+ Операция должна выполнять следующее:
+	Если значение параметра P_CODE = ‘S##_ЛЬГОТ_КОЭФ’, то необходимо:
+		o	Определить дату расчета. Для этого необходимо определить значение доп параметра DATE_OP из строки дополнительных параметров P_ADD_PAR. 
+		Если значение – пусто, то в качестве даты расчета берется дата ОД
+		o	Найти записи в справочнике «S##. Кредиты. Принадлежность к категории» по данному КД (который передается через параметр P_PROD) 
+		на дату расчета (определенную выше). Если такая запись есть, то из операции возвращается значение коэффициента для категории ссуды из этой записи.
+	Во всех остальных случаях возвращается строка ‘EMPTY’
+ */
+DATE_OP [DATE];
+ref_s92_cr_to_categ ref [S92_CR_TO_CATEG];
+
+begin
+	&debug('P_ADD_PAR: ' || P_ADD_PAR, 0)
+	if P_CODE = 'S92_ЛЬГОТ_КОЭФ' then
+		DATE_OP := nvl(::[RUNTIME].[STR].GET_DATE_PAR(P_ADD_PAR, 'DATE_OP'), ::[SYSTEM].[OP_DATE]);
+		&debug('DATE_OP: ' || DATE_OP, 0)
+		begin
+			ref_s92_cr_to_categ := ::[S92_CR_TO_CATEG]([CREDIT] = P_PROD and [START] <= DATE_OP);
+			&debug('Нашли экземляр из ТБП [S92_CR_TO_CATEG] с ID= ' || ref_s92_cr_to_categ%id, 0)
+			return to_char(ref_s92_cr_to_categ.[CATEGORY].[CF], '9.99');
+			
+			exception when NO_DATA_FOUND then
+				&debug('Экземляр не найден', 0)
+				return 'EMPTY';
+		end;
+	end if;
+	
+end;
+
+end; 
+end;
