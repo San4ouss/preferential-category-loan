@@ -1,0 +1,2 @@
+@name('Ссылка на "S92. Кредиты. Категория ссуды"')
+class S92_CR_CATEG_REF is ref [S92_CR_CATEGORY];
