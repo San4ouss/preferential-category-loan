@@ -1,0 +1,84 @@
+class SYSTEM_PARAMS;
+
+/**
+@comment
+Получение значения системного параметра с заданным кодом
+*/
+@optimize(false)
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('Получить параметр')
+static method GET is
+pragma include ([INTERFACE].[COMPILE_LIB]);
+procedure check_api is
+begin
+     &check_api
+end;
+
+/* Не взрывается (кроме случая TOO_MANY_ROWS)
+  , возвращает null если нет настройки
+  , объялена с прагмой WNDS, WNPS
+*/
+public function Get
+/*Функция получения значения системного параметра по коду (без учета значений по подразделениям).*/
+(
+	P_CODE string
+		/*Код системного параметра.*/
+)
+/*Возвращает значение системного параметра в виде строки.
+возвращает null если системного параметра не существует.*/
+return string is 
+value	[SYSTEM_PARAMS].[VALUE]%type;
+begin
+	if P_CODE is not null then
+		select x (x.[VALUE]) in ::[SYSTEM_PARAMS] where x.[CODE] = P_CODE into value;
+	end if;
+	return value;
+
+exception when NO_DATA_FOUND then
+	return null;
+end;
+pragma restrict_references (Get, wnds, wnps);
+
+
+GET (
+	@name('Код параметра')
+	P_CODE in [STRING_16],
+	@name('Искл.ситуация при неудачном поиске')
+	P_EXC in [BOOLEAN] default null,
+	@name('Подразделение')
+	P_DEPART in [DEPART_REF] default null
+) return [STRING_70] is
+
+execute is
+/*********************************************************************
+Назначение: Получение значения системного параметра с заданным кодом
+*********************************************************************/
+	depcode string; -- Код подразделения
+begin
+	P_EXC:=nvl(P_EXC, false);
+	
+	if P_DEPART is null then
+		P_DEPART := stdlib.userid.[DEPART];
+	end if;
+	
+	depcode := P_DEPART.[CODE];
+	if P_CODE is null then
+		if P_EXC then
+	    	pragma error('Не задан код параметра для поиска');
+		end If;
+	else
+		for (select sp(sp.[VALUE]:val, sp.[DEPART_VALUES]:DEPART_VALUES) in ::[SYSTEM_PARAMS] where sp.[CODE] = P_CODE) loop
+			for (select dv(dv.[VALUE]:val) in sp.[DEPART_VALUES] where depcode like dv.[DEPART].[CODE]||'%' order by dv.[DEPART].[CODE] desc) loop
+				return dv.val;
+	    	end loop;
+	    	return sp.val;
+	    end loop;
+		if P_EXC then
+			pragma error('Параметр с кодом '||P_CODE||' не найден в справочнике системных параметров!');
+		end If;
+	end if;
+	return null;
+end;
+end;
+end;
