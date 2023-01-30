@@ -1,0 +1,15 @@
+@entity('TYPE')
+@name('Экспорт-импорт файлов')
+@tag('SYSTEM')
+abstract class FILE$LOAD {
+	@name('Путь к файлу-источнику')                        SRC_PATH   [FILE$PATH];
+	@name('Имя файла-источника')                           SRC_NAME   [STRING];
+	@name('Маска файлов источника')                        SRC_MASK   [FILE$MASK];
+	@name('Тип источника (false - клиент, true - сервер)') SRC_TYPE   [BOOLEAN];
+	@name('Признак удаления источника')                    SRC_DELETE [BOOLEAN];
+	@name('Путь к файлу-приемнику')                        DST_PATH   [FILE$PATH];
+	@name('Имя файла-приемника')                           DST_NAME   [STRING];
+	@name('Маска файлов приемника')                        DST_MASK   [FILE$MASK];
+	@name('Тип приемника (false - клиент, true - сервер)') DST_TYPE   [BOOLEAN];
+	@name('Признак удаления приемника')                    DST_DELETE [BOOLEAN];
+}
