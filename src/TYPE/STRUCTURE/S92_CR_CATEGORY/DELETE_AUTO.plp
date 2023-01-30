@@ -1,0 +1,6 @@
+class S92_CR_CATEGORY;
+
+@name('Удалить')
+@tag('CREATED')
+destructor DELETE_AUTO is
+end;

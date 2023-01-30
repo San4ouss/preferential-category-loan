@@ -1,0 +1,5 @@
+class S92_CR_CATEGORY;
+
+unique index IDX_Z#S92_CR_CATEGORY_ {
+	[CODE]
+}

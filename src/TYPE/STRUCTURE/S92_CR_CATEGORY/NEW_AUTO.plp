@@ -1,0 +1,49 @@
+class S92_CR_CATEGORY;
+
+@name('Добавить')
+@tag('CREATED')
+constructor NEW_AUTO is
+
+NEW_AUTO (
+	@name('Код')
+	P_CODE in [STRING],
+	@name('Наименование')
+	P_NAME in [STRING],
+	@name('вид кредита')
+	P_REF_KIND_CR in [KIND_CREDITS_REF],
+	@name('Коэффициент')
+	P_CF in [NUMBER]
+) return ref [S92_CR_CATEGORY] is
+
+validate is
+begin
+	-- Start initialization of parameters and variables
+	if p_message = 'DEFAULT' then
+		P_CODE := this.[CODE];
+		P_NAME := this.[NAME];
+		P_REF_KIND_CR := this.[REF_KIND_CR];
+		P_CF := this.[CF];
+	end if;
+	-- End initialization of parameters and variables
+end;
+
+execute is
+begin
+	
+	-- Установка значения реквизита "Код"
+	[CODE] := P_CODE;
+	-- Установка значения реквизита "Наименование"
+	[NAME] := P_NAME;
+	-- Установка значения реквизита "вид кредита"
+	[REF_KIND_CR] := P_REF_KIND_CR;
+	-- Установка значения реквизита "Коэффициент"
+	[CF] := P_CF;
+	
+	-- Проверка обязательности полей 
+	if [CODE] is null or [NAME] is null or [CF] is null then
+		pragma ERROR('Нельзя сохранить запись, если не заполнены поля Код, Наименование, Коэффициент');
+	end if;
+	
+end;
+end;
+end;
