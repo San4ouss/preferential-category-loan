@@ -1,0 +1,24 @@
+class AUXAPP_METHOD;
+
+@name('Удалить')
+@tag('CREATED')
+method DELETE#AUTO is
+
+DELETE#AUTO (
+	@name('Перекомпилировать точку вызова')
+	P_COMP in [BOOLEAN]
+) is
+
+execute is
+begin
+	if P_COMP then
+	--	pragma set_this;
+		var cp ref [APPAUX_CALLPOINT];
+		select a(a) in ::[APPAUX_CALLPOINT] all where a.[METHODS] = this%collection into cp;
+		this%delete;
+		cp.[COMPILE] := true;
+		cp.[RECOMPILE];
+	end if;
+end;	
+end;
+end;

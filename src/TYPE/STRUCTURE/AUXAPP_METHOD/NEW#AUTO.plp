@@ -1,0 +1,81 @@
+class AUXAPP_METHOD;
+
+@name('Добавить')
+@tag('CREATED')
+constructor NEW#AUTO is
+pragma include ([INTERFACE].[COMPILE_LIB]);
+procedure check_api is
+begin
+	&check_api
+end;
+
+NEW#AUTO (
+	@name('Группа')
+	P_GRP in [SHORT2],
+	@name('Приоритет')
+	P_PRIORITY in [SHORT2],
+	@name('ТБП')
+	P_CLS in [STRING_64],
+	@name('Метод')
+	P_SNAME in [STRING_64],
+	@name('PL+Код постобработки')
+	P_PLP_CODE in [MEMO],
+	@name('Перекомпилировать точку вызова')
+	P_COMP in [BOOLEAN]
+) return ref [AUXAPP_METHOD] is
+
+validate is
+begin
+-- Start initialization of parameters and variables
+if p_message = 'DEFAULT' then
+	P_GRP := this.[GRP];
+	P_PRIORITY := this.[PRIORITY];
+	P_CLS := this.[CLS];
+	P_SNAME := this.[SNAME];
+	P_PLP_CODE := this.[PLP_CODE];
+end if;
+-- End initialization of parameters and variables
+begin
+	if p_message = 'DEFAULT' then
+		P_COMP := true;
+	end if;
+end;
+end;
+
+execute is
+	v_app_meth 	ref [AUXAPP_METHOD];
+	cp 			ref [APPAUX_CALLPOINT];
+	v_hook_sname [APPAUX_CALLPOINT].[HOOK_SNAME]%type;
+begin
+	if P_CLS is null then
+		pragma error('Не указан ТБП');
+	end if;
+	if P_SNAME is null then
+		pragma error('Не указано короткое имя метода');
+	end if;
+
+	select a(a, a.[HOOK_SNAME]) in ::[APPAUX_CALLPOINT] all where a.[METHODS] = this%collection into cp, v_hook_sname;
+	if upper(P_CLS) = ::[HOOK]%class and upper(P_SNAME) = v_hook_sname then
+		pragma error('Запрещено добавлять операцию, которая указана как операция изменяемой точки вызова.');
+	end if;
+
+	begin
+		locate v_app_meth in this%collection where v_app_meth.[CLS] = upper(P_CLS) and v_app_meth.[SNAME] = upper(P_SNAME) and v_app_meth != this;
+		pragma error('Уже существует метод с именем "'||upper(P_SNAME)||'" и классом "' || upper(P_CLS) || '".');
+	exception when no_data_found then
+		null;	
+	end;
+	
+	[GRP]		:= P_GRP;			-- Установка значения реквизита "Группа"
+	[PRIORITY]	:= P_PRIORITY;		-- Установка значения реквизита "Приоритет"
+	[CLS]		:= upper(P_CLS);	-- Установка значения реквизита "ТБП"
+	[SNAME]		:= upper(P_SNAME);	-- Установка значения реквизита "Метод"
+	[PLP_CODE]	:= P_PLP_CODE;
+	if P_COMP then
+		pragma set_this;
+		cp.[COMPILE] := true;
+		cp.[RECOMPILE];
+	end if;
+end;
+end;
+end;
