@@ -1,0 +1,317 @@
+class MAIN_DOCUM;
+
+@optimize(false)
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('Платежные документы. Проверка реквизитов по стоп-листу')
+@tag('COPIED')
+static method CHECKSTOPLIST is
+pragma include ('APPAUX_CALLPOINT.COMPILE_LIB');
+&setcallmethod('MD_FOR_PROV', 1)
+CHECKSTOPLIST (
+	@name('Документ')                   DOCUMENT   in     [MAIN_DOCUM_REF],
+	@name('Счет дебета')                ACCOUNT_DT in     [AC_FIN_REF],
+	@name('Счет кредита')               ACCOUNT_CT in     [AC_FIN_REF],
+	@name('Признак счета дебета')       IT_DT      in     [BOOLEAN],
+	@name('Признак успешности анализа') ANALYSE_OK in out [BOOLEAN],
+	@name('Дополнительные параметры')   P_ADDS     in out [STRING_32000],
+	@name('Тип вызова')                 P_MESS     in     [STRING_100]
+) is
+
+execute is
+is_sl   boolean;   -- Проверка реквизитов по стоп-листу
+is_check_stoplist	boolean;
+hist		[HISTORY_STATES];
+sl_ret  ref	[STOPLIST];
+l_mess_err	boolean := false;
+
+	sl_rec [STOPLIST];
+	v_err_str string(32767);
+	v_err_all string(32767);
+	v_tune boolean;
+	v_class_cl_dt varchar2(16);
+	v_class_cl_kt varchar2(16);
+
+pragma macro(set_mess_err,'if ::[STOPLIST].[STOPLIST_LIB].sltype_lock then
+							l_mess_err := true;
+						end if', substitute);
+						
+						
+begin
+	if P_MESS = 'BEGIN' and IT_DT then
+	
+		-- Проверка реквизитов по стоп-лист		
+		begin
+			locate hist in DOCUMENT.[HISTORY_STATE] where hist.[STATE] = 'CHECKSTOPLIST';
+			is_check_stoplist := true;
+		exception when NO_DATA_FOUND then
+			is_check_stoplist := false;
+		end;
+	
+		if not is_check_stoplist then
+			if DOCUMENT.[VID_DOC] in (	::[NAME_PAYDOC]([CODE]='КАСС_РАСХОД_ОРД'),
+										::[NAME_PAYDOC]([CODE]='КАСС_ЧЕК_ВЫДАЧА'),
+										::[NAME_PAYDOC]([CODE]='БЕЗН_ПЛ_ПОРУЧ'),
+										::[NAME_PAYDOC]([CODE]='БЕЗН_ПЛ_ОР'))
+			then
+				if document.[KL_DT].[0] = 1 then
+					
+					v_class_cl_dt := document.[KL_DT].[1].[1]%class;
+					
+					sl_ret := ::[STOPLIST].[STOPLIST_LIB].check_stop_create(document.[KL_DT].[1].[1]);
+					
+					if sl_ret is not null then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						v_err_str := 'Плательщик (наименование) "'||DOCUMENT.[KL_DT].[1].[1].[NAME]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false),
+								' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+				else
+					v_class_cl_dt := 'UNKN';
+				end if;
+	
+				if document.[KL_KT].[0] = 1 then
+					v_class_cl_kt := document.[KL_KT].[1].[1]%class;
+					sl_ret := ::[STOPLIST].[STOPLIST_LIB].check_stop_create(DOCUMENT.[KL_KT].[1].[1]);
+					if sl_ret is not null then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Получатель (наименование) "'||DOCUMENT.[KL_KT].[1].[1].[NAME]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);					
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+				else
+					v_class_cl_kt := 'UNKN';
+				end if;
+				
+				v_tune := nvl(::[FP_TUNE].[LIB].get_bool_value('SL_CHK_NAME_AND_INN', null, '0'), false);
+				if	not v_tune or v_tune and 
+				 	(
+						document.[KL_DT].[0] = 2 or 
+						document.[KL_DT].[0] = 1 and
+						v_class_cl_dt <> 'CL_PRIV' and  
+						(
+						upper(replace(coalesce(document.[KL_DT].[1].[1].[NAME], '~NULL~'), ' ')) <> upper(replace(coalesce(DOCUMENT.[KL_DT].[2].[2], '~NULL~'), ' '))
+						or coalesce(document.[KL_DT].[1].[1].[INN], '~NULL~') <> coalesce(DOCUMENT.[KL_DT].[2].[INN], '~NULL~')
+						)
+					) 
+				then  
+					-- Проверка плательщика (не клиент банка) по наименованию
+					is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_cl_name(DOCUMENT, DOCUMENT.[KL_DT].[2].[2]);
+					if is_sl  then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Плательщик (наименование из реквизитов плательщика) "'||DOCUMENT.[KL_DT].[2].[2]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+					
+					-- Проверка плательщика (не клиент банка) по ИНН				
+					is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_inn(DOCUMENT, DOCUMENT.[KL_DT].[2].[INN]);
+					if is_sl  then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Плательщик (ИНН) "'||DOCUMENT.[KL_DT].[2].[INN]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+				else
+					-- Проверка плательщика (не клиент банка) по ИНН и наименованию				
+					is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_cl_name_inn(DOCUMENT, DOCUMENT.[KL_DT].[2].[2], DOCUMENT.[KL_DT].[2].[INN]);
+					if is_sl  then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Плательщик (наименование, ИНН из реквизитов плательщика) "'||DOCUMENT.[KL_DT].[2].[2]||'", "'||DOCUMENT.[KL_DT].[2].[INN]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+				end if;				
+	
+				-- Клиент по кредиту
+				if	not v_tune or v_tune and 
+				 	(	
+						document.[KL_KT].[0] = 2 or 
+						document.[KL_KT].[0] = 1 and
+						v_class_cl_kt <> 'CL_PRIV' and  
+						(
+						upper(replace(coalesce(document.[KL_KT].[1].[1].[NAME], '~NULL~'), ' ')) <> upper(replace(coalesce(DOCUMENT.[KL_KT].[2].[2], '~NULL~'), ' '))
+						or coalesce(document.[KL_KT].[1].[1].[INN], '~NULL~') <> coalesce(DOCUMENT.[KL_KT].[2].[INN], '~NULL~')
+						)
+					) 
+				then  
+					-- Проверка получателя (не клиент банка) по наименованию				
+					is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_cl_name(DOCUMENT, DOCUMENT.[KL_KT].[2].[2],false);
+					if is_sl  then -- Блокирующий стоп-лист
+						&set_mess_err;		
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Получатель (наименование из реквизитов получателя) "'||DOCUMENT.[KL_KT].[2].[2]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;			
+					
+					-- Проверка получателя (не клиент банка) по ИНН				
+					is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_inn(DOCUMENT, DOCUMENT.[KL_KT].[2].[INN],false);
+					if is_sl then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Получатель (ИНН) "'||DOCUMENT.[KL_KT].[2].[INN]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+				else
+					-- Проверка получателя (не клиент банка) по ИНН				
+					is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_cl_name_inn(DOCUMENT, DOCUMENT.[KL_KT].[2].[2], DOCUMENT.[KL_KT].[2].[INN],false);
+					if is_sl then -- Блокирующий стоп-лист
+						&set_mess_err;
+						
+						sl_rec := null;
+						sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+						v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+						
+						v_err_str := 'Получатель (наименование, ИНН из реквизитов получателя) "'||DOCUMENT.[KL_KT].[2].[2]||'", "'||DOCUMENT.[KL_KT].[2].[INN]||'" находится в '
+							||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+								,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+								,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+							);
+						
+						stdio.put_line_buf('Внимание!!! ' || v_err_str);
+						if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+							v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+						end if;
+					end if;
+				end if;		
+						
+				-- Проверка по назначению платежа				
+				is_sl := ::[STOPLIST].[STOPLIST_LIB].check_nazn_pay(DOCUMENT, DOCUMENT.[NAZN],true,2);
+				if is_sl then -- Найден
+					&set_mess_err;
+					
+					sl_rec := null;
+					sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+					v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+					
+					v_err_str := 'В назначении платежа "'||DOCUMENT.[NAZN]||'" найдены реквизиты в '
+						||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false)
+							, 'блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+							, 'предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+						);
+					
+					stdio.put_line_buf('Внимание!!! ' || v_err_str);
+					if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+						v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+					end if;
+				end if;					
+			end if;
+	
+			-- Клиент по кредиту конец проверки
+	
+			if DOCUMENT.[VID_DOC] in (::[NAME_PAYDOC]([CODE]='КАСС_РАСХОД_ОРД'), ::[NAME_PAYDOC]([CODE]='КАСС_ЧЕК_ВЫДАЧА')) then
+				-- Проверка реквизитов вносителя/получателя
+				is_sl := ::[STOPLIST].[STOPLIST_LIB].check_doc_reqs(DOCUMENT, DOCUMENT.[REQ_MAN]);
+				if is_sl then -- Блокирующий стоп-лист
+					&set_mess_err;
+					
+					sl_rec := null;
+					sl_rec := ::[STOPLIST].[STOPLIST_LIB].sltype_id;
+					v_err_str := 'УИНИ = ' || sl_rec.[RECORD_ID] || ', УИК = ' || sl_rec.[CLI_ID] || ' (id = ' || sl_rec%id || ')';
+					
+					v_err_str := 'Данный клиент  "'||DOCUMENT.[REQ_MAN].[NAME]||'" находится в '
+						||bool_char(nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock,false)
+							,' блокирующем СТОП-Листе '|| v_err_str ||'. Операции с ним запрещены.'
+							,' предупреждающем СТОП-Листе '|| v_err_str ||'. Для выполнения операций требуется подтверждение.'
+						);
+					
+					stdio.put_line_buf('Внимание!!! ' || v_err_str);
+					if nvl(::[STOPLIST].[STOPLIST_LIB].sltype_lock, false) then
+						v_err_all := substr( v_err_all || NL$ || v_err_str, 1, v_err_all%size);
+					end if;
+				end if;				
+			end if;
+			if l_mess_err then
+				pragma error('Обнаружено совпадение в блокирующем СТОП-Листе. Проводка запрещена.' || v_err_all);
+			else
+				::[DOCUMENT].[DOC_LIB].add_history_state(DOCUMENT, 'CHECKSTOPLIST', stdlib.userid.[NAME], p_date == sysdate, p_check == false); -- Записей о CHECKSTOPLIST еще нет)
+			end if;
+		end if;
+
+	end if;
+end;
+end;
+end;

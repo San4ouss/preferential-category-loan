@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ViewPresentation classId="MAIN_DOCUM" shortName="VW_CRIT_S92_MAIN_DOCUM">
+    <Properties/>
+    <Columns>
+        <Column alias="C_DATE_DOC" referenceId="0">
+            <Name>Дата</Name>
+            <Align>center</Align>
+            <DateFormat>Default(dd/MM/yyyy)</DateFormat>
+            <Filtered>true</Filtered>
+            <Resizeable>true</Resizeable>
+            <Width>7</Width>
+        </Column>
+        <Column alias="C_VID_DOC" referenceId="1">
+            <Name>Документ</Name>
+            <Resizeable>true</Resizeable>
+            <Width>8</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_NUM" referenceId="0">
+            <Name>Номер</Name>
+            <Align>right</Align>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+        </Column>
+        <Column alias="C_SUM" referenceId="0">
+            <Name>Сумма</Name>
+            <Align>right</Align>
+            <NumberPrecision>2</NumberPrecision>
+            <Resizeable>true</Resizeable>
+            <Width>9</Width>
+        </Column>
+        <Column alias="C_SUM_NT" referenceId="0">
+            <Name>Сумма эквивалента</Name>
+            <Align>right</Align>
+            <NumberPrecision>2</NumberPrecision>
+            <Resizeable>true</Resizeable>
+            <Width>11</Width>
+        </Column>
+        <Column alias="C_CUR_SHORT" referenceId="1">
+            <Name>Вал</Name>
+            <Align>center</Align>
+            <Resizeable>true</Resizeable>
+            <Width>4</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CUR_SHORT_DT_R" referenceId="1">
+            <Name>Валюта Дт (для обратных ссылок)</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CUR_SHORT_KT_R" referenceId="1">
+            <Name>Валюта Кт (для обратных ссылок)</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_ACC_DT" referenceId="1">
+            <Name>Счет Дебет</Name>
+            <Resizeable>true</Resizeable>
+            <Width>14</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_ACC_DT_R" referenceId="1">
+            <Name>Счет Дебет (для обратных ссылок)</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_ACC_KT" referenceId="1">
+            <Name>Счет Кредит</Name>
+            <Resizeable>true</Resizeable>
+            <Width>14</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_ACC_KT_R" referenceId="1">
+            <Name>Счет Кредит (для обратных ссылок)</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_STATE_ID" referenceId="1">
+            <Name>Состояние</Name>
+            <Resizeable>true</Resizeable>
+            <Width>8</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_DATE_PROV" referenceId="0">
+            <Name>Дата проводки</Name>
+            <Align>center</Align>
+            <DateFormat>Default(dd/MM/yyyy)</DateFormat>
+            <Filtered>true</Filtered>
+            <Resizeable>true</Resizeable>
+            <Width>8</Width>
+        </Column>
+        <Column alias="C_NAZN" referenceId="0">
+            <Name>Назначение платежа</Name>
+            <Resizeable>true</Resizeable>
+            <Width>12</Width>
+        </Column>
+        <Column alias="C_BIC" referenceId="0">
+            <Name>БИК Банка корресп.</Name>
+            <Resizeable>true</Resizeable>
+            <Width>15</Width>
+        </Column>
+        <Column alias="C_VID_SEND" referenceId="1">
+            <Name>Вид пересылки</Name>
+            <Resizeable>true</Resizeable>
+            <Width>9</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CODE" referenceId="1">
+            <Name>Тип сооб.</Name>
+            <Resizeable>true</Resizeable>
+            <Width>5</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_NUM_KS" referenceId="1">
+            <Name>Номер кассы</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_NUM_KS1" referenceId="1">
+            <Name>Номер кассы(доп.)</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_NAZN_CODE" referenceId="0">
+            <Name>Наз.пл.</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+        </Column>
+        <Column alias="C_PRIORITET" referenceId="0">
+            <Name>Очеред- ность</Name>
+            <Align>center</Align>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+        </Column>
+        <Column alias="C_DOCUMENT_DATE" referenceId="0">
+            <Name>Дата создания</Name>
+            <Align>center</Align>
+            <DateFormat>Default(dd/MM/yyyy)</DateFormat>
+            <Resizeable>true</Resizeable>
+            <Width>7</Width>
+        </Column>
+        <Column alias="C_NAME" referenceId="1">
+            <Name>Создано пользователем</Name>
+            <Resizeable>true</Resizeable>
+            <Width>17</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_NAME_1" referenceId="1">
+            <Name>Проведено пользователем</Name>
+            <Resizeable>true</Resizeable>
+            <Width>16</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CODE_SD" referenceId="1">
+            <Name>Участник- отправитель</Name>
+            <Resizeable>true</Resizeable>
+            <Width>11</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CODE_RC" referenceId="1">
+            <Name>Участник- получатель</Name>
+            <Resizeable>true</Resizeable>
+            <Width>11</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_KL_DT#2#1" referenceId="0">
+            <Name>Счет плательщика</Name>
+            <Resizeable>true</Resizeable>
+            <Width>14</Width>
+        </Column>
+        <Column alias="C_KL_KT#2#1" referenceId="0">
+            <Name>Счет получателя</Name>
+            <Resizeable>true</Resizeable>
+            <Width>14</Width>
+        </Column>
+        <Column alias="C_KL_DT#2#2" referenceId="0">
+            <Name>Плательщик</Name>
+            <Resizeable>true</Resizeable>
+            <Width>21</Width>
+        </Column>
+        <Column alias="C_KL_KT#2#2" referenceId="0">
+            <Name>Получатель</Name>
+            <Resizeable>true</Resizeable>
+            <Width>21</Width>
+        </Column>
+        <Column alias="C_DOCUMENT_UNO" referenceId="0">
+            <Name>Уникальный номер документа</Name>
+            <Resizeable>true</Resizeable>
+            <Width>11</Width>
+        </Column>
+        <Column alias="C_ASTR_DATE_PROV" referenceId="0">
+            <Name>Астрономическая дата проводки</Name>
+            <Align>center</Align>
+            <DateFormat>dd/MM/yyyy HH:mm:ss</DateFormat>
+            <Resizeable>true</Resizeable>
+            <Width>13</Width>
+        </Column>
+        <Column alias="C_DATE_VAL" referenceId="0">
+            <Name>Дата валютирования</Name>
+            <Align>center</Align>
+            <DateFormat>dd/MM/yyyy HH:mm:ss</DateFormat>
+            <Resizeable>true</Resizeable>
+            <Width>12</Width>
+        </Column>
+        <Column alias="C_IN_FOLDER" referenceId="1">
+            <Name>Папка</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_KOD_NAZN" referenceId="1">
+            <Name>Код н.п.</Name>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_PACHKA" referenceId="0">
+            <Name>Пачка</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+        </Column>
+        <Column alias="C_TEXT_VOZV" referenceId="0">
+            <Name>Причина возврата и служебные отметки</Name>
+            <Resizeable>true</Resizeable>
+            <Width>16</Width>
+        </Column>
+        <Column alias="C_NAME_2" referenceId="1">
+            <Name>Исполнитель</Name>
+            <Resizeable>true</Resizeable>
+            <Width>13</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_QUIT_DOC" referenceId="1">
+            <Name>Квитующий документ</Name>
+            <Resizeable>true</Resizeable>
+            <Width>8</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_DEPART" referenceId="1">
+            <Name>Подразделение</Name>
+            <Resizeable>true</Resizeable>
+            <Width>5</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_ID" referenceId="0">
+            <Name>ID</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+        </Column>
+        <Column alias="C_CODE_1" referenceId="1">
+            <Name>Состояние передачи документа по дебету</Name>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CODE_2" referenceId="1">
+            <Name>Состояние передачи документа по кредиту</Name>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_PRODUCT_DT#ACC_PROD" referenceId="1">
+            <Name>Продукт по счету дебета Продукт</Name>
+            <Resizeable>true</Resizeable>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_HISTORY_STATE" referenceId="1">
+            <Name>История состояний</Name>
+            <Resizeable>true</Resizeable>
+            <Width>22</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_AUX_CTRL" referenceId="0">
+            <Name>Доп. контроль. Подтверждения</Name>
+            <Align>center</Align>
+            <Resizeable>true</Resizeable>
+            <Width>14</Width>
+            <Navigation>
+                <Transition>condition</Transition>
+                <Class>AUX_CTRL_ACCEPT</Class>
+                <View>VW_CRIT_AUX_CTRL_ACCEPT_ALL</View>
+                <Condition>[C_ID] = {CTRL_OBJ_ID}</Condition>
+            </Navigation>
+        </Column>
+        <Column alias="C_SUM_KSPL" referenceId="1">
+            <Name>Сумма документа по символам касплана</Name>
+            <Resizeable>true</Resizeable>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_PRODUCT_CT#ACC_PROD" referenceId="1">
+            <Name>Продукт по счету кредита Продукт</Name>
+            <Resizeable>true</Resizeable>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CORRECTION_DOC" referenceId="1">
+            <Name>Исправляемый документ</Name>
+            <Resizeable>true</Resizeable>
+            <Width>27</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_STORNO_DOC" referenceId="1">
+            <Name>Исправляющий документ</Name>
+            <Resizeable>true</Resizeable>
+            <Width>27</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_FILIAL" referenceId="1">
+            <Name>Филиал</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>8</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_DEPART_DT" referenceId="1">
+            <Name>Подразделение cчета Дебета (для проверки доступа) </Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_DEPART_KT" referenceId="1">
+            <Name>Подразделение cчета Кредита (для проверки доступа) </Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_MAIN_SMART" referenceId="1">
+            <Name>Исходный документ</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>22</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_DEPART_ID" referenceId="1">
+            <Name>Подразделение документа ID</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>1</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="SMART" referenceId="0">
+            <Name>Сложная проводка/ Многострочный документ</Name>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+        </Column>
+        <Column alias="C_EDITION_UNO" referenceId="0">
+            <Name>Уникальный номер приложения (клиентского перевода)</Name>
+            <Resizeable>true</Resizeable>
+            <Width>30</Width>
+        </Column>
+        <Column alias="C_DOCUMENT_NUM" referenceId="1">
+            <Name>Включен в многострочный документ</Name>
+            <Align>right</Align>
+            <Resizeable>true</Resizeable>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_SUBDOCUMENTS" referenceId="1">
+            <Name>Частные проводки</Name>
+            <Resizeable>true</Resizeable>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_PRODUCT_DT#ACC_DOC" referenceId="1">
+            <Name>Продукт по счету дебета Документ</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_PRODUCT_CT#ACC_DOC" referenceId="1">
+            <Name>Продукт по счету кредита Документ</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_REP_1ST_SIGN" referenceId="1">
+            <Name>Представитель для первой подписи</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>30</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_NAME_3" referenceId="1">
+            <Name>Представитель для первой подписи</Name>
+            <Resizeable>true</Resizeable>
+            <Width>20</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_VALUE" referenceId="1">
+            <Name>Должность</Name>
+            <Resizeable>true</Resizeable>
+            <Width>12</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_FILIAL_CODE" referenceId="1">
+            <Name>Филиал</Name>
+            <Resizeable>true</Resizeable>
+            <Width>6</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CATEGORY_INFO" referenceId="1">
+            <Name>Категория информации</Name>
+            <Resizeable>true</Resizeable>
+            <Visibility>invisible</Visibility>
+            <Width>8</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_UPNO" referenceId="0">
+            <Name>УПНО</Name>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+        </Column>
+    </Columns>
+</ViewPresentation>

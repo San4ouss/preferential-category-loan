@@ -1,0 +1,74 @@
+class MAIN_DOCUM;
+
+@optimize(false)
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('S92. Маркировка документов с льготной категорией')
+@tag('COPIED')
+static method S92_MARK_CATEG is
+pragma include (::[DEBUG_TRIGGER].[MACRO_LIB]);
+pragma include ('APPAUX_CALLPOINT.COMPILE_LIB');
+--&setcallmethod('MD_FOR_PROV', 1)
+
+S92_MARK_CATEG (
+	@name('Документ') DOCUMENT in [MAIN_DOCUM_REF]
+	)
+
+is
+
+execute is
+ref_s92_cr_to_categ ref [S92_CR_TO_CATEG];
+type tb_num is table of ref [HISTORY_STATES];
+arr tb_num;
+						
+begin
+	&debug('Начало выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME, 0)
+	&debug('Document%id: ' || DOCUMENT%id, 0)
+	
+	--Получаем ссылку на экземляр из справочника [S92_CR_TO_CATEG] по id счета дебета КД и дате документа
+	pragma SUBSTITUTE(false);
+	ref_s92_cr_to_categ := ::[S92_CR_TO_CATEG]([CREDIT] = DOCUMENT.[PRODUCT_DT].[ACC_PROD] 
+											and [START] <= DOCUMENT.[DATE_DOC]
+											and ([END] is null or [END] >= DOCUMENT.[DATE_DOC])
+											);
+	
+	if ref_s92_cr_to_categ is not null then
+		&debug('Найден экземпляр с id= ' || ref_s92_cr_to_categ%id || ' в справочнике [S92_CR_TO_CATEG]', 0)
+		
+		/*Делаем проверку, существует ли уже в массиве [HISTORY_STATE] запись с таким состоянием и коэфициентом
+		 * если запись уже есть, то не будем добалять повторно.
+		 * Данная проверка требуется потому что при проводке документа наша операция сработает пять раз одновременно, 
+		 * так работает hook, вызывает до проводки, после проводки, по дебету, по кредиту. 
+		 * В нашем задании требуется, чтобы появилась одна запись в истории состояний, и данная проверка отвечает именно за это
+		 */
+		select a(a) in DOCUMENT.[HISTORY_STATE] all 
+		where a.[STATE] = 'S92_NOTE_CAT' 
+		and a.[ADD_INFO] = to_char(ref_s92_cr_to_categ.[CATEGORY].[CF], '0.00')
+		into arr;
+		
+		if arr.count = 0 then
+			&debug('В массиве [HISTORY_STATE] не были найдены записи', 0)
+			
+			::[DOCUMENT].[DOC_LIB].add_history_state(DOCUMENT, 
+												'S92_NOTE_CAT', 
+												to_char(ref_s92_cr_to_categ.[CATEGORY].[CF], '0.00'),
+												p_date == sysdate
+												);
+			&debug('В массив [HISTORY_STATE] документа проводки добавлена новая запись со значением Коэффицента' 
+				|| to_char(ref_s92_cr_to_categ.[CATEGORY].[CF], '0.00'), 0)
+		else
+			&debug('В массиве [HISTORY_STATE] документа проводки уже существует запись со значением Коэффицента' 
+				|| to_char(ref_s92_cr_to_categ.[CATEGORY].[CF], '0.00'), 0)
+		end if;
+	else
+		&debug('В справочнике [S92_CR_TO_CATEG] не существует экземпляр для договора ' || DOCUMENT.[PRODUCT_DT].[ACC_PROD], 0)
+	end if;
+	
+	&debug('Конец выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME, 0)
+	
+	exception when others then 
+		&debug('Возникла ошибка при выполнении операции S92. Маркировка документов с льготной категорией', 0)
+		stdio.PUT_LINE_BUF('! Возникла ошибка при выполнении операции [' || &METHOD$SNAME || '] ' || sqlerrm);
+end;
+end;
+end;

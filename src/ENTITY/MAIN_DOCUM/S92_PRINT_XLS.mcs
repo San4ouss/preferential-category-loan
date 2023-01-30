@@ -1,0 +1,10 @@
+Public Function Main(LastControl)
+	
+	'msgbox V_VALID.Text
+	
+	Execute V_VALID.Text
+	V_VALID.Text = ""
+	
+	Main = True 'Результирующее значение валидатора (True или False)
+
+End Function

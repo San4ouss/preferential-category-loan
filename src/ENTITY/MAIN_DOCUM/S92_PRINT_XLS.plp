@@ -1,0 +1,322 @@
+class MAIN_DOCUM;
+@import_plsql(true)
+
+@name('S92. Выгрузка документов льготных кредитов')
+static method S92_PRINT_XLS is
+
+@name('Переменная_1')
+public V_VALID [STRING_32000];
+
+pragma include (::[RUNTIME].[CSMD]);
+pragma include (::[OOXML].[API_XL]);
+pragma include (::[DEBUG_TRIGGER].[MACRO_LIB]);
+
+pragma macro (xl, '::[OOXML].[API_XL]');
+pragma macro (lib_ooxml, '::[SHABLON_DOC].[LIB_OOXML]');
+
+pragma macro(xml,'::[RUNTIME].[XML_DOM]');
+
+-- Объявляем индексированный массив ссылок
+type t_refs_tb1 is table of ref [MAIN_DOCUM];
+rRefs_md t_refs_tb1;
+
+procedure draw_report_xls (v_date_begin in [DATE], v_date_end in [DATE]) is
+row  integer default 1;
+n_num integer default 1;
+
+blob_iblob_new blob;
+s_file_path varchar2(1000);
+s_file_name varchar2(500);
+hist [MEMO];
+
+begin
+	
+	-- Загрузка шаблона 
+	::[SHABLON_DOC].[LIB_OOXML].load_blob('S92_MD_EXCEL', blob_iblob_new, null, 'MAIN_DOCUM', null, null);
+	
+	-- Инициализация
+	&xl.init_xls;
+	
+	if blob_iblob_new is not null then
+		&debug('файл не пустой', 0)
+	end if;
+	
+	if not &xl.open_file(blob_iblob_new) then
+		pragma error('В справочнике "' || ::[SHABLON_DOC]%classname || '" не найден шаблон с кодом "S92_MD_EXCEL"');
+	end if;
+	
+	-- Заполняем отчет данными
+	
+	&xl.Open_Sheet(1);
+	
+	-- Задаем тонкие линии границы таблицы
+	n_num := &xl.GET_BORDER(p_top == &xl.xl_b_thin, p_right == &xl.xl_b_thin
+							, p_bottom == &xl.xl_b_thin, p_left == &xl.xl_b_thin);
+	
+	&xl.set_row_height(25, 1);
+				
+	&xl.set_column_width(20, 1);
+	&xl.cell(row, 1, 'id Документа',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(20, 2);
+	&xl.cell(row, 2, 'Номер Документа',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(30, 3);
+	&xl.cell(row, 3, 'Дата проводки',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(30, 4);
+	&xl.cell(row, 4, 'Валюта по дебету (код ISO)',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(25, 5);
+	&xl.cell(row, 5, 'Номер счёта по дебету',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(30, 6);
+	&xl.cell(row, 6, 'Валюта по кредиту (код ISO)',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(25,7);
+	&xl.cell(row, 7, 'Номер счёта по кредиту',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(20, 8);
+	&xl.cell(row, 8, 'Сумма по дебету',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(30, 9);
+	&xl.cell(row, 9, 'Назначение платежа',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+				
+	&xl.set_column_width(30, 10);
+	&xl.cell(row, 10, 'Дополнительная информация',p_horizontal == &xl.xl_av_center,p_vertical == &xl.xl_av_center);
+	
+	select x(distinct x) in ::[MAIN_DOCUM] all
+	where x.[DATE_PROV] >= v_date_begin and x.[DATE_PROV] <= v_date_end + interval('1', 'day') 
+	and x.[HISTORY_STATE].[STATE] = 'S92_NOTE_CAT'
+	into rRefs_md;
+		
+	&debug('В массиве кол-во записей: ' || rRefs_md.count, 0)
+	
+	if rRefs_md.count = 0 then
+		&debug('Не были найдены экземпляры в ТБП [MAIN_DOCUM]', 0)
+	else
+		for i in 1 .. rRefs_md.count 
+		loop
+			row := row + 1;
+			&xl.put(row,  1, rRefs_md(i)%id);
+			&xl.put(row,  2, rRefs_md(i).[DOCUMENT_NUM]);
+			&xl.put(row,  3, to_char(rRefs_md(i).[DATE_PROV], 'DD.MM.YYYY hh24:mi:ss'));
+			&xl.put(row,  4, rRefs_md(i).[VALUTA].[CODE_ISO]);
+			&xl.put(row,  5, to_char(rRefs_md(i).[NUM_DT]));
+			&xl.put(row,  6, rRefs_md(i).[VALUTA_PO].[CODE_ISO]);
+			&xl.put(row,  7, to_char(rRefs_md(i).[NUM_KT]));
+			&xl.put(row,  8, rRefs_md(i).[SUM]);
+			&xl.put(row,  9, rRefs_md(i).[NAZN]);
+			begin
+				select y(y.[ADD_INFO]) in rRefs_md(i).[HISTORY_STATE] all
+						where y.[STATE] = 'S92_NOTE_CAT'
+						and y.[ADD_INFO] is not null
+						order by y.[DATE] desc
+						fetch 1 into hist;
+				exception when NO_DATA_FOUND then
+					&debug('В массиве [HISTORY_STATE] не были найдены записи', 0)
+			end;
+				
+			&xl.put(row,  10, hist);
+		end loop;
+	end if;
+	
+	-- Задаем линии границы таблицы
+	&xl.Set_Format_Range(1, 1, row, 10, p_borderId == n_num);
+	
+	-- Закрываем 
+	&xl.finish(blob_iblob_new);
+	
+	-- Отправляем запрос на запуск
+	::[OOXML].[API_ORSA].putReport2Run(blob_iblob_new, 'xlsx', 'S92_Выгрузка_xlsx' || to_char(sysdate,'_yy_mm_dd_hh24_mi_ss'));
+	
+	s_file_path := ::[SYSTEM_PARAMS].[GET]('PATH', true);
+	s_file_name :=	'S92_PRINT_XLS';
+	
+	-- Записываем файл в корень сервера FIO
+	&lib_ooxml.write_to_file(blob_iblob_new, s_file_path, s_file_name);
+end;
+
+procedure add_text_node(p_node				in out nocopy &xml.DOMNode, 
+						p_xml_doc			in out nocopy &xml.DOMDocument, 
+						p_new_node_name 	in varchar2, 
+						p_text 				in [STRING_1000], 
+						p_write_empty 		in boolean default false) is
+begin
+	if p_text is not null then
+		&xml.appendChild(&xml.appendChild(p_node, &xml.makeNode(&xml.createElement(p_xml_doc, p_new_node_name))),
+						 &xml.makeNode(&xml.createTextNode(p_xml_doc, p_text)));
+	elsif p_text is null and  p_write_empty then
+		&xml.appendChild(p_node,&xml.makeNode(&xml.createElement(p_xml_doc, p_new_node_name)));
+	end if;
+end;
+
+procedure draw_report_xml(v_date_begin in [DATE], v_date_end in [DATE]) is	
+	-- Переменные для работы с FIO
+	root_dir		varchar2;		-- Корневой каталог FIO
+
+	-- Переменный для работы со структурой XML
+	p				&xml.Parser;
+	xml_doc			&xml.DOMDocument;
+	main_node		&xml.DOMNode;
+
+	level01_node 		&xml.DOMNode;
+	level01_elem 		&xml.DOMElement;
+	
+	-- Переменные для формирования отчета
+	v_clob 		clob;
+	v_blob 		blob;
+	
+	-- Объявляем  переменную-ссылку
+	hist ref [HISTORY_STATES];
+	
+begin
+	-- инициализация XML
+	&xml.initialize;	-- Инициализация библиотеки
+	p 				:= &xml.newParser;	-- Создане парсера
+ 	&xml.parseBuffer(p, '<?xml version="1.0" encoding="Windows-1251"?><elm/>');
+	xml_doc 		:= &xml.getDocument(p);
+
+	-- Заполнение структуры данных
+	-- Узел (NODE) верхнего уровня создаем особым образом
+	main_node 		:= &xml.makeNode(xml_doc);						-- Создаем верхний узел
+    level01_elem 	:= &xml.createElement(xml_doc, 'MAIN_DOCUM_REPORT');	-- Создаем элемент с именем 'MAIN_DOCUM_REPORT'
+	level01_node 	:= &xml.makeNode(level01_elem);					-- Делаем из элемента узел
+	&xml.replaceChild(main_node, level01_node, &xml.makeNode(&xml.getDocumentElement(xml_doc))); -- Подменяем верхний узел на созданный
+	
+	-- Заполняем заголовок 
+	&xml.SetAttribute(level01_elem, 'created', to_char(sysdate, 'dd/mm/yy hh24:mi:ss'));
+	&xml.SetAttribute(level01_elem, 'author', ::[USER].[LIB].userid().[NAME]);
+	&xml.SetAttribute(level01_elem, 'comment', 'Выгрузка документов льготных кредитов');
+	
+	select x(distinct x) in ::[MAIN_DOCUM] all
+	where x.[DATE_PROV] >= v_date_begin and x.[DATE_PROV] <= v_date_end + interval('1', 'day') 
+	and x.[HISTORY_STATE].[STATE] = 'S92_NOTE_CAT'
+	into rRefs_md;
+		
+	&debug('В массиве кол-во записей: ' || rRefs_md.count, 0)
+	
+	if rRefs_md.count = 0 then
+		&debug('Не были найдены экземпляры в ТБП [MAIN_DOCUM]', 0)
+	else
+		for i in 1 .. rRefs_md.count 
+		loop
+			declare
+			level02_node 		&xml.DOMNode;
+			level02_elem 		&xml.DOMElement;
+			level03_node 		&xml.DOMNode;
+			level03_elem 		&xml.DOMElement;
+		begin
+			level02_elem 	:= &xml.createElement(xml_doc, 'record'); -- Создаем элемент с именем record
+			level02_node 	:= &xml.makeNode(level02_elem); -- Делаем из элемента узел
+			&xml.appendChild(level01_node, level02_node); -- Подчиняем узел нужному узлу
+			
+			-- Добавление атрибутов в узел
+			&xml.setAttribute(level02_elem, 'idx', rRefs_md(i)%id);
+			
+			-- Добавление текстовых полей в узел
+			add_text_node(level02_node, xml_doc, 'document_num', rRefs_md(i).[DOCUMENT_NUM]);
+			add_text_node(level02_node, xml_doc, 'empl_name', rRefs_md(i).[DOCUMENT_USER].[NAME]);
+			add_text_node(level02_node, xml_doc, 'num_dt', rRefs_md(i).[NUM_DT]);
+			add_text_node(level02_node, xml_doc, 'num_ct', rRefs_md(i).[NUM_KT]);
+			add_text_node(level02_node, xml_doc, 'totsum', rRefs_md(i).[SUM]);
+			add_text_node(level02_node, xml_doc, 'clname', rRefs_md(i).[NAZN]);
+			
+			-- Добавление текстовых полей в узел из коллекции [HISTORY_STATES]
+			begin
+				select y(y) in rRefs_md(i).[HISTORY_STATE] all
+						where y.[STATE] = 'S92_NOTE_CAT'
+						and y.[ADD_INFO] is not null
+						order by y.[DATE] desc
+						fetch 1 into hist;
+				exception when NO_DATA_FOUND then
+					&debug('В массиве [HISTORY_STATE] не были найдены записи', 0)
+			end;
+			
+			level03_elem 	:= &xml.createElement(xml_doc, 'state_hist'); -- Создаем элемент с именем state_hist
+			level03_node 	:= &xml.makeNode(level03_elem); -- Делаем из элемента узел
+			&xml.appendChild(level02_node, level03_node); -- Подчиняем узел нужному узлу
+			
+			add_text_node(level03_node, xml_doc, 'state', hist.[STATE]);
+			add_text_node(level03_node, xml_doc, 'date', hist.[DATE]);
+			add_text_node(level03_node, xml_doc, 'add_info', hist.[ADD_INFO]);
+		end;
+		end loop;
+	end if;
+	
+	-- Сохранение файла на сервере - FIO
+	root_dir 	:= stdio.GET_ENV('FIO_ROOT_DIR');
+	stdio.put_line_buf('root_dir = '||root_dir);
+
+	--запись в Clob
+	dbms_lob.createtemporary(v_clob, true, dbms_lob.session);
+	&xml.writeToClob(xml_doc, v_clob);
+	
+	--конвертация в Blob
+	dbms_lob.createtemporary(v_blob, true, dbms_lob.session);	
+	::[RUNTIME].[LOB_UTILS].clob2blob(v_blob, v_clob);
+	
+	--Отправляем запрос на запуск
+	::[OOXML].[API_ORSA].putReport2Run(v_blob, 'xml', 'S92_Выгрузка_xml' || to_char(sysdate,'_yy_mm_dd_hh24_mi_ss'));
+
+	--освобождаем место, занимаемое временными LOB-ами
+	dbms_lob.freetemporary(v_clob);
+	dbms_lob.freetemporary(v_blob);					
+end;
+
+S92_PRINT_XLS
+	(
+		@name('Дата начала')
+		P_DATE_BEGIN in [DATE],
+		@name('Дата окончания')
+		P_DATE_END in [DATE],
+		@name('формат XLS')
+		P_XLS in [BOOLEAN],
+		@name('формат XML')
+		P_XML in [BOOLEAN]
+	) 
+
+is
+
+validate is
+
+begin
+	if P_MESSAGE = 'DEFAULT' then
+		P_DATE_BEGIN := ::[SYSTEM].[OP_DATE];
+		P_DATE_END := ::[SYSTEM].[OP_DATE];
+		P_XLS := false;
+		P_XML := false;
+		[CSMD].init_form(V_VALID, &METHOD$CLASS, &METHOD$NAME);
+		::[RUNTIME].[CSMD].Command(V_VALID, 'Ok.Enabled = False');
+		
+	end if;
+	
+	/*
+	 * В блоке валидации кнопка ОК остается заблокирована до тех пор, пока пользователь не выберет в каком формате отчет он хочет получить 
+	 * и не проcтавит корректно дату начала и дату окончания
+	 */
+	if P_MESSAGE = 'VALIDATE' then
+		if P_DATE_BEGIN is null or P_DATE_END is null or P_DATE_BEGIN > P_DATE_END or not (P_XLS or P_XML) then
+			::[RUNTIME].[CSMD].Command(V_VALID, 'Ok.Enabled = False');
+		else 
+			::[RUNTIME].[CSMD].Command(V_VALID, 'Ok.Enabled = True');
+		end if;
+		
+	end if;
+end;
+
+execute is
+
+begin
+	if P_XLS then
+		draw_report_xls(P_DATE_BEGIN, P_DATE_END);
+	end if;
+	
+	if P_XML then
+		draw_report_xml(P_DATE_BEGIN, P_DATE_END);
+	end if;
+	
+end;
+
+end; 
+end;
