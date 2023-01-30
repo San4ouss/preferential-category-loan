@@ -1,0 +1,10 @@
+@entity('TYPE')
+@name('Расширения и перекрытия. Методы')
+class AUXAPP_METHOD {
+	@name('Группа')                         GRP      [SHORT2];
+	@name('Приоритет')                      PRIORITY [SHORT2];
+	@name('ТБП')                            CLS      [STRING_64];
+	@name('Метод')                          SNAME    [STRING_64];
+	@name('PL+Код постобработки')           PLP_CODE [MEMO];
+	@name('Бизнес-процесс внешней системы') CIT_BO   [CIT_BO_REF];
+}
