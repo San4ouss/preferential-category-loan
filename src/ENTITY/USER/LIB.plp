@@ -1,0 +1,107 @@
+class USER;
+
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('Библиотека пользователя')
+library LIB is
+
+--Возвращает ссылку на пользователя по его имени, по умолчанию возвращает ссылку на текущего пользователя.
+-- Возвращает ссылку на пользователя по его
+-- сетевому имени или номеру ответисполнителя
+-- по умолчанию возвращает ссылку на текущего пользователя.
+public function userid(p_username string default null) return ref [USER] is 
+	user_id ref [USER] := null;
+	u_name string(32) := null;
+begin
+	if p_username is null then
+		return stdlib.userid;
+	end if;
+	-- Костенко И.С. 04.02.2003
+	u_name := upper(replace(p_username,'-','_'));
+	if instr('1234567890', substr(u_name, 1, 1)) > 0 then
+		select u(u%id) in [USER] where u.[OTVET] = u_name into user_id;
+	else
+		select u(u%id) in [USER] where u.[USERNAME] = u_name into user_id;
+	end if;
+	return user_id;
+exception when NO_DATA_FOUND then
+		return null;
+	when TOO_MANY_ROWS then
+		pragma error('Найдено несколько клиентов = '||user_id);
+		return null;
+end;
+
+--Возвращает ссылку на подразделение пользователя по его имени, по умолчанию возвращает ссылку на подразделение текущего пользователя.
+-- Возвращает ссылку на подразделение пользователя по его имени, по умолчанию возвращает ссылку на подразделение текущего пользователя.
+public function user_depart(p_username string default user) return ref [DEPART] is 
+begin
+	return userid(p_username).[DEPART];
+end;
+
+--Возвращает 1 если в одном подразделении
+-- Возвращает 1 если p_obj1 и p_obj2 принадлежат одному подразделению
+public function same_depart(p_obj1 string(16),
+					 p_obj2 string(16),
+					 p_class string(16) default 'USER') return string(1) is 
+dep1 ref [DEPART];
+dep2 ref [DEPART];
+p_c string(16);
+begin
+	p_c := nvl(p_class, 'USER');
+	if p_c = 'USER' then
+		begin
+			select us(us.[DEPART]) in [USER] where us%id = p_obj1 into dep1;
+			select us1(us1.[DEPART]) in [USER] where us1%id = p_obj2 into dep2;
+			if dep1 is null or dep2 is null then
+				return 0;
+			elsif dep1 = dep2 then
+				return 1;
+			else
+				return same_depart(dep1, dep2, 'DEPART');
+			end if;
+		exception when NO_DATA_FOUND then
+			return null;
+		end;
+
+	elsif p_c = 'DEPART' then
+		if p_obj2 = p_obj1 then
+			return 1;
+		else
+			select d(d.[HIGH]) in [DEPART] where d%id = p_obj1 into dep1;
+			select d1(d1.[HIGH]) in [DEPART] where d1%id = p_obj2 into dep2;
+			if dep1 is null and dep2 is null then
+				return 0;
+			end if;
+			if dep1 = p_obj2 or dep2 = p_obj1 or dep1 = dep2 then
+				return 1;
+			else
+				return same_depart(dep1, dep2, 'DEPART');
+			end if;
+		end if;
+	end if;
+	return 0;
+end;
+
+-- Получает USERNAME из ФИО
+public Function GET_USERNAME(fio ::[USER].[NAME]%type) return ::[USER].[USERNAME]%type is 
+ret		::[USER].[USERNAME]%type;
+io string(2);
+u	ref [USER];
+Begin
+	ret := substr(str.[TRANSLETERATE](UPPER(stdlib.fio(fio, 'Ф'))), 1, ret%size);
+	Loop
+		Begin
+			locate u in ::[USER] where u.[USERNAME] = ret;
+			If u.[NAME] = fio then
+				exit;
+			else
+				io := substr(replace(str.[TRANSLETERATE](UPPER(stdlib.fio(fio, 'И.О.'))), '.'), 1, io%size);
+				ret := ret||'_'||io;
+			End if;
+		exception when NO_DATA_FOUND then
+			exit;
+		End;
+	End loop;
+	return ret;
+End;
+end;
