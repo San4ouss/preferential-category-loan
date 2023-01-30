@@ -1,0 +1,3 @@
+@name('Число')
+@tag('CORE')
+class NUMBER is number;
