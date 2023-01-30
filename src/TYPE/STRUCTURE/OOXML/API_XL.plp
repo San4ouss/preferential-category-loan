@@ -1,0 +1,2317 @@
+class OOXML;
+/**
+@comment 
+= Порядок установки библиотек Excel в соответствии с взаимозависимостями
+
+* [ ] 1-ая очерёдность (нет взаимозависимостей)
+
+`LIB_UTF`
+ +
+`MOD_XQ`
+ +
+`XL_KIT`
+ +
+`XL_PROTECT`
+ +
+`XL_TAG`
+
+* [ ] 2-ая очерёдность
+
+`XL_F`
+ +
+`XL_PT`
+
+* [ ] 3-ья очерёдность
+
+`JXL`
+ +
+`XL`
+
+* [ ] 4-ая очерёдность
+
+`API_XL`
+
+*/
+@import_plsql(true)
+@name('API. Чтение / запись .xlsx файлов')
+library API_XL is
+/***********************************************************
+*	Функционал для работы с файлами Excel (.xlsx, .xlsm, .xltx, .xltm)
+*	Excel Extensions to the Office Open XML SpreadsheetML File Format
+*/
+
+/**/
+pragma include ([INTERFACE].[COMPILE_LIB]);
+procedure check_api is
+begin
+	&check_api
+end;
+/**/
+--#ifdef java
+pragma macro( xl,'[OOXML]::[JXL]');
+--#else
+pragma macro( xl,'[OOXML]::[XL]');
+--#endif
+pragma macro(kit,'[OOXML]::[XL_KIT]');
+pragma macro(  f,'[OOXML]::[XL_F]');
+
+--
+pragma macro(xlprot, '[OOXML]::[XL_PROTECT]');
+
+-- список констант для XLSX
+-- виды окантовок ячейки
+public xl_b_none					const varchar2 := 'none';
+public xl_b_thin					const varchar2 := 'thin';
+public xl_b_medium					const varchar2 := 'medium';
+public xl_b_dashedconst				const varchar2 := 'dashed';
+public xl_b_dottedconst				const varchar2 := 'dotted';
+public xl_b_thick					const varchar2 := 'thick';
+public xl_b_double					const varchar2 := 'double';
+public xl_b_hair					const varchar2 := 'hair';
+public xl_b_mediumDashed			const varchar2 := 'mediumDashed';
+public xl_b_dashDot					const varchar2 := 'dashDot';
+public xl_b_mediumDashDot			const varchar2 := 'mediumDashDot';
+public xl_b_dashDotDot				const varchar2 := 'dashDotDot';
+public xl_b_mediumDashDotDot		const varchar2 := 'mediumDashDotDot';
+public xl_b_slantDashDot			const varchar2 := 'slantDashDot';
+-- выравнивание по горизонтали
+public xl_ah_horizontal				const varchar2 := 'horizontal';
+public xl_ah_center					const varchar2 := 'center';
+public xl_ah_centerContinuous		const varchar2 := 'centerContinuous';
+public xl_ah_distributed			const varchar2 := 'distributed';
+public xl_ah_fill					const varchar2 := 'fill';
+public xl_ah_general				const varchar2 := 'general';
+public xl_ah_justify				const varchar2 := 'justify';
+public xl_ah_left					const varchar2 := 'left';
+public xl_ah_right					const varchar2 := 'right';
+-- выравнивание по вертикали
+public xl_av_vertical				const varchar2 := 'vertical';
+public xl_av_bottom					const varchar2 := 'bottom';
+public xl_av_center					const varchar2 := 'center';
+public xl_av_distributed			const varchar2 := 'distributed';
+public xl_av_justify				const varchar2 := 'justify';
+public xl_av_top					const varchar2 := 'top';
+-- типы данных ячейки
+public xl_tp_bool					const varchar2 := 'b';			-- логику
+public xl_tp_date					const varchar2 := 'd';			-- содержит дату в формате ISO 8601.
+public xl_tp_error					const varchar2 := 'e';			-- метка ошибки содержания.
+public xl_tp_inlineStr				const varchar2 := 'inlineStr';	-- содежит многострочный текст он не содержится в SharedString.
+public xl_tp_number					const varchar2 := 'n';			-- содержит число.
+public xl_tp_SharedString			const varchar2 := 's';			-- содежит однострочный текст он содержится в SharedString.
+public xl_tp_formula				const varchar2 := 'str';		-- формула
+--
+public xl_inf_stop					const varchar2 := 'stop';
+public xl_inf_warning				const varchar2 := 'warning';
+public xl_inf_information			const varchar2 := 'information';
+-- Стили заливки
+public xl_fs_darkDown				const varchar2 := 'darkDown';
+public xl_fs_darkGray				const varchar2 := 'darkGray';
+public xl_fs_darkGrid				const varchar2 := 'darkGrid';
+public xl_fs_darkHorizontal			const varchar2 := 'darkHorizontal';
+public xl_fs_darkTrellis			const varchar2 := 'darkTrellis';
+public xl_fs_darkUp					const varchar2 := 'darkUp';
+public xl_fs_darkVertical			const varchar2 := 'darkVertical';
+public xl_fs_gray0625				const varchar2 := 'gray0625';
+public xl_fs_gray125				const varchar2 := 'gray125';
+public xl_fs_lightDown				const varchar2 := 'lightDown';
+public xl_fs_lightGray				const varchar2 := 'lightGray';
+public xl_fs_lightGrid				const varchar2 := 'lightGrid';
+public xl_fs_lightHorizontal		const varchar2 := 'lightHorizontal';
+public xl_fs_lightTrellis			const varchar2 := 'lightTrellis';
+public xl_fs_lightUp				const varchar2 := 'lightUp';
+public xl_fs_lightVertical			const varchar2 := 'lightVertical';
+public xl_fs_mediumGray				const varchar2 := 'mediumGray';
+public xl_fs_none					const varchar2 := 'none';
+public xl_fs_solid					const varchar2 := 'solid';
+-- Вертикальное выравнивание
+public xl_va_baseline				const varchar2 := 'baseline';
+public xl_va_superscript			const varchar2 := 'superscript';
+public xl_va_subscript				const varchar2 := 'subscript';
+-- Шаблоны для колонтитулов
+public xl_hd_PageNumber				const varchar2(2)	:= '&P';		-- Номер страницы		&[Страница]
+public xl_hd_NumberOfPages			const varchar2(2)	:= '&N';		-- Количество страниц	&[Страниц]
+public xl_hd_CurDate				const varchar2(2)	:= '&D';		-- Текущая дата			&[Дата]
+public xl_hd_CurTime				const varchar2(2)	:= '&T';		-- Текущая время		&[Время]
+public xl_hd_Full					const varchar2(4)	:= '&Z&F';		-- Путь к файлу			&[Путь]&[Файл]
+public xl_hd_FileName				const varchar2(2)	:= '&F';		-- Имя файла			&[Файл]
+public xl_hd_SheetName				const varchar2(2)	:= '&A';		-- Имя листа			&[Лист]
+
+--
+public type STRING_TABLE_S is constant.STRING_TABLE_S;
+--
+public procedure clear_workbook
+/* Очистка локальной переменной, хранящей данные книги */ is
+begin
+	&xl.clear_workbook;
+end;
+--
+--	xl_hd_Picture			const varchar2(2)	:= '&G';		-- Рисунок				&[Рисунок]
+public procedure use_include
+/* установка дополнительных модулей*/
+(use_pivot_table boolean := false
+	/* использование сводных таблиц по умолчанию отключена */
+) is
+begin
+	&xl.use_include(use_pivot_table == use_pivot_table);
+end;
+
+--
+public procedure set_row_height
+/* Установка высоты строки */
+			( p_height			number
+			/* Значение высоты строки */
+			, p_row_min			integer
+			/* min номер строки */
+			, p_row_max			integer			:= null
+			/* max номер строки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_row_height
+			( p_height
+			, p_row_min
+			, p_row_max
+			, p_sheet
+			);
+end;
+--
+public procedure set_column_width
+/* Установка ширины колонки */
+			( p_width			number
+			/* Значение ширины колонки */
+			, p_col_min			integer
+			/* min номер колонки */
+			, p_col_max			integer			:= null
+			/* max номер колонки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_column_width
+			( p_width
+			, p_col_min
+			, p_col_max
+			, p_sheet
+			);
+end;
+--
+public function get_font
+/*	Получение номера шрифта */
+			( p_name			varchar2
+			/* Наименование шрифта (например, 'Calibri') */
+			, p_family			integer			:= 2
+			/* строка значения для тэга <family val="..."/> */
+			, p_fontsize		number			:= 11
+			/* размер шрифта */
+			, p_theme			integer			:= 1
+			/* тема - шаблон стилей */
+			, p_underline		boolean			:= false
+			/* признак у шрифта свойства подчёркивания */
+			, p_italic			boolean			:= false
+			/* признак у шрифта свойства курсива */
+			, p_bold			boolean			:= false
+			/* признак жирности шрифта */
+			, p_RGB				varchar2		:= null
+			/*	16-тиричное символьное значение
+				"Прозрачность Красный Зелёный Синий" (alpha red green blue)
+				(например, 'FFFF0000')
+				URL=http://en.wikipedia.org/wiki/RGBA_color_space
+			*/
+			)
+	/* Возвращается идентификатор шрифта */
+	return	integer is
+begin
+	return &xl.get_font
+			( p_name
+			, p_family
+			, p_fontsize
+			, p_theme
+			, p_underline
+			, p_italic
+			, p_bold
+			, p_rgb
+			);
+end;
+--
+public function get_fill_back_color
+/*	Получение из кэша идентификатора для тэга <fills />.
+	При отсутствии в кэше новое значение в него добавляется.
+*/
+			( p_RGB				varchar2		:= null
+			/*	16-тиричное символьное значение
+				"Прозрачность Красный Зелёный Синий" (alpha red green blue)
+				(например, 'FFFF0000')
+				URL=http://en.wikipedia.org/wiki/RGBA_color_space
+			*/
+			)
+	/* Возвращается идентификатор для тэга <fills /> */
+	return integer is
+begin
+	return &xl.get_fill
+			( p_patternType		== &xl.xl_fs_Solid
+			, p_fgRGB			== p_RGB
+			);
+end;
+--
+public function get_border
+/*	Получение из кэша идентификатора для окантовок ячейки.
+	При отсутствии в кэше новое значение в него добавляется.
+	см. xl_b_...
+*/
+			( p_top				varchar2		:= xl_b_none
+			/* окантовка верхней линии */
+			, p_bottom			varchar2		:= xl_b_none
+			/* окантовка нижней линии */
+			, p_left			varchar2		:= xl_b_none
+			/* окантовка левой линии */
+			, p_right			varchar2		:= xl_b_none
+			/* окантовка правой линии */
+			)
+	/* Возвращается идентификатор описания окантовки */
+	return integer is
+begin
+	return &xl.get_border
+			( p_top
+			, p_bottom
+			, p_left
+			, p_right
+			);
+end;
+--
+public procedure new_sheet
+/* Добавление в книгу нового листа */
+			( p_sheetname		varchar2		:= null
+			/* Наименование листа */
+			) is
+begin
+	&xl.new_sheet
+			( p_sheetname
+			);
+end;
+--
+public procedure AddCopySheet
+/* Создание листа Excel на основании другого */
+			( p_sheetname_src	varchar2
+			/* Наименование листа-источника */
+			, p_sheetname_new	varchar2	default null
+			/* Наименование нового листа */
+			) is
+begin
+	&xl.AddCopySheet
+			( p_sheetname_src
+			, p_sheetname_new
+			);
+end;
+--
+public function OraFmt2Excel
+/* Преобразование маски формата для даты из Oracle в Excel */
+			( p_format			varchar2		:= null
+			/* Маска формата для даты в Oracle */
+			)
+	/* Возвращается маска формата для даты в Excel */
+	return varchar2 is
+begin
+	return &xl.OraFmt2Excel
+			( p_format
+			);
+end;
+--
+public function get_numFmt
+/*	Получение идентификатора формата из кэша.
+	При отсутствии в кэше новое значение в него добавляется.
+*/
+			( p_format			varchar2		:= null
+			/* Формат числового значения */
+			)
+	/* Возвращается идентификатор формата */
+	return integer is
+begin
+	return &xl.get_numFmt
+			( p_format
+			);
+end;
+--
+public function get_column_width
+/* Получение ширины колонки */
+			( p_col				integer
+			/* Номер колонки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			)
+	/* Возвращается ширина запрашиваемой колонки */
+	return number is
+begin
+	return &xl.get_column_width
+			( p_col
+			, p_sheet
+			);
+end;
+--
+public function get_row_height
+/* Получение высоты строки */
+			( p_row				integer
+			/* Номер строки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			)
+	/* Возвращается высота запрашиваемой строки */
+	return number is
+begin
+	return &xl.get_row_height
+			( p_row
+			, p_sheet
+			);
+end;
+--
+public procedure Ins_Row
+/* Добавление строк */
+			( p_row				integer
+			/* с какого номера */
+			, p_count			integer			:= 1
+			/* количество строк */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			, p_is_styles		boolean			:= false
+			/* Необходимость копировать стиль строки p_row */
+			, p_copy_lag		boolean			:= false
+			/* Копировать объединённые области с предыдущей строки */
+			) is
+begin
+	&xl.Ins_Row
+			( p_row
+			, p_count
+			, p_sheet
+			, p_is_styles
+			, p_copy_lag
+			);
+end;
+--
+public procedure Ins_Column
+/* Добавление столбцов */
+			( p_col				integer
+			/* с какого номера */
+			, p_count			integer			:= 1
+			/* количество столбцов */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			, p_is_styles		boolean			:= false
+			/* Необходимость копировать стиль столбца p_col */
+			) is
+begin
+	&xl.Ins_Column
+			( p_col
+			, p_count
+			, p_sheet
+			, p_is_styles
+			);
+end;
+--
+public procedure Delete_Row
+/* Удаление строк */
+			( p_row				integer
+			/* Номер начальной (верхней) строки диапазона */
+			, p_count			integer			:= 1
+			/* Количество строк диапазона */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	if p_row is null or p_row < 1 then
+		return;
+	end if;
+
+	&xl.Delete_Row
+			( p_row
+			, p_count
+			, p_sheet
+			);
+end;
+--
+public procedure Delete_Column
+/* Удаление колонок */
+			( p_col				integer
+			/* Номер начальной (левой) колонки диапазона */
+			, p_count			integer			:= 1
+			/* Количество колонок диапазона */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	if p_col is null or p_col < 1 then
+		return;
+	end if;
+
+	&xl.Delete_Column
+			( p_col
+			, p_count
+			, p_sheet
+			);
+end;
+--
+--	'#,##0.0000'
+	iNumFmtId			integer;
+	vInteger			varchar2(42);
+	vFract				varchar2(32);
+--
+public procedure Init_XLS
+/* Инициализация пакета */
+			( p_sheetname		varchar2		:= null
+			/* Наименование 1-го листа */
+			) is
+begin
+	iNumFmtId	:= null;
+	vInteger	:= null;
+	vFract		:= null;
+
+	&xl.Init_XLS
+			( p_sheetname
+			);
+end;
+--
+public function LongNum2Str
+/* Преобразование числа к строке по формату */
+			( p_value		in	out	number
+			/* Числовое значение для преобразования к строке */
+			, p_numFmtId			integer		:= null
+			/* Идентификатор требуемого формата числа в строке */
+			)
+	/* Возвращается строковое представление числа */
+	return varchar2 is
+	i		integer;
+	idx		integer;
+	vTh		varchar2(1);
+	vFmt	varchar2(40);
+	vRet	varchar2(50);
+begin
+	--	Microsoft Excel корректно отображает только числа, для отображения которых
+	--	требуется не более 15 цифровых знакомест без учёта символов:
+	--		1. знак минус (для отрицательных чисел);
+	--		2. разделитель дробной части;
+	--		3. разделитель тысяч.
+	--	Так как применение формата может приводить вместе с округлением числа к уменьшению количества цифр,
+	--	подсчёт количества цифр нужно производить после примения формата в получаемой строке.
+
+	if p_numFmtId is null then
+		if p_value = trunc(p_value) then
+			vRet	:= to_char( p_value, 'FM99999999999999999999999999990');
+		else
+			vRet	:= to_char( p_value, 'FM99999999999999999999999999990D999999999999999999', 'NLS_NUMERIC_CHARACTERS=.,');
+		end if;
+	else
+		if iNumFmtId = p_numFmtId then
+			null;
+		else
+			iNumFmtId	:= p_numFmtId;
+			vFmt	:= &xl.getFmt(p_numFmtId);
+			idx	:= instr(vFmt, '.');
+			if idx = 0 then
+				vFract	:= null;
+			else
+				vFract	:= replace( substr(vFmt,idx+1), '#', '9' );
+			end if;
+			if substr(vFmt,1,1) = '#' then
+				vTh	:= substr(vFmt,2,1);
+				if vTh = '#' then
+					vInteger	:= 'FM99999999999999999999999999990';
+				else
+					vInteger	:= 'FM99G999G999G999G999G999G999G999G999G990';
+				end if;
+			else
+				vInteger	:= 'FM99999999999999999999999999990';
+			end if;
+		end if;
+
+		if vFract is null then
+			vRet	:= to_char( p_value, vInteger);
+		else
+			vRet	:= to_char( p_value, vInteger||'D'||vFract, 'NLS_NUMERIC_CHARACTERS=.,');
+		end if;
+	end if;
+
+	if  regexp_count( vRet, '\d') > 15 then
+		--	Вычисление количества цифр
+		return vRet;
+	end if;
+
+	return null;
+end;
+--
+public procedure cell
+/* Запись числового значения в ячейку */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			number
+			/*	Числовое значение для записи в ячейку.
+				При этом нужно иметь в виду ограничения, описанные
+				в документе "Floating-point arithmetic may give inaccurate results in Excel"
+				https://support.microsoft.com/en-us/help/78113/floating-point-arithmetic-may-give-inaccurate-results-in-excel
+				в результате чего, к примеру, при вводе числа 1.1 в ячейку "A1" (Microsoft Excel 2016 Version: 16.0.4738.1000)
+				в файле \xl\worksheets\sheet1.xml вы увидете информацию <c r="A1"><v>1.1000000000000001</v></c>
+			*/
+			, p_numFmtId		integer			:= null
+			/* Идентификатор формата */
+			, p_fontId			integer			:= null
+			/* Идентификатор фонта */
+			, p_fillId			integer			:= null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			:= null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		:= null
+			/*	Способ выравнивания в ячейке по вертикали.
+				Допустимые значения для параметра : см. xl_av_...
+			*/
+			, p_horizontal		varchar2		:= null
+			/*	Способ выравнивания в ячейке по горизонтали.
+				Допустимые значения для параметра : см. xl_ah_...
+			*/
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			:= null
+			/*	Размер отступа для текста в ячейке (количество пространства при обычном стиле шрифта).
+				Целое значение, где прирост 1 представляет собой 3 места.
+				Количество пробелов для отступа рассчитывается следующим образом:
+				Количество пробелов для отступа = значение отступа * 3
+			*/
+			, p_shrinkToFit		integer			:= null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+	v	varchar2(40);
+begin
+	-- Если номер строки и номер стоблца не заполнены, вывод в ячейку не выполняется
+	if p_row is null or p_col is null then return;
+	end if;
+
+	v	:= LongNum2Str( p_value, p_numFmtId );
+
+	if v is null then
+		&xl.cell( p_row
+				, p_col
+				, p_value
+				, p_numFmtId
+				, p_fontId
+				, p_fillId
+				, p_borderId
+				, p_vertical
+				, p_horizontal
+				, p_wrapText
+				, p_indent
+				, p_shrinkToFit
+				, p_sheet
+				);
+	else
+		-- из-за некорректного отображения в Excel'e чисел длиннее 15
+		&xl.cell_v
+				( p_row
+				, p_col
+				, v
+				, p_numFmtId
+				, p_fontId
+				, p_fillId
+				, p_borderId
+				, p_vertical
+				, p_horizontal
+				, p_wrapText
+				, p_indent
+				, p_shrinkToFit
+				, p_sheet
+		--		, p_is
+				);
+	end if;
+end;
+--
+public procedure cell
+/* Запись строкового значения в ячейку */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			varchar2
+			/* Строковое значение для записи в ячейку */
+			, p_numFmtId		integer			:= null
+			/* Идентификатор формата */
+			, p_fontId			integer			:= null
+			/* Идентификатор фонта */
+			, p_fillId			integer			:= null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			:= null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		:= null
+			/*	Способ выравнивания в ячейке по вертикали.
+				Допустимые значения для параметра : см. xl_av_...
+			*/
+			, p_horizontal		varchar2		:= null
+			/*	Способ выравнивания в ячейке по горизонтали.
+				Допустимые значения для параметра : см. xl_ah_...
+			*/
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			:= null
+			/*	Размер отступа для текста в ячейке (количество пространства при обычном стиле шрифта).
+				Целое значение, где прирост 1 представляет собой 3 места.
+				Количество пробелов для отступа рассчитывается следующим образом:
+				Количество пробелов для отступа = значение отступа * 3
+			*/
+			, p_shrinkToFit		integer			:= null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			, p_is				boolean			:= null
+			/* Признак хранения строки в ячейке "Inline" (xl\worksheets\sheet<p_sheet>.xml),
+			   а не ссылки из общего списка строк (xl\sharedStrings.xml).
+			*/
+			) is
+begin
+	-- Если номер строки и номер стоблца не заполнены, вывод в ячейку не выполняется
+	if p_row is null or p_col is null then return;
+	end if;
+
+	&xl.cell_v
+			( p_row
+			, p_col
+			, p_value
+			, p_numFmtId
+			, p_fontId
+			, p_fillId
+			, p_borderId
+			, p_vertical
+			, p_horizontal
+			, p_wrapText
+			, p_indent
+			, p_shrinkToFit
+			, p_sheet
+			, p_is
+			);
+end;
+--
+public procedure cell
+/* Запись значения типа дата в ячейку */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			date
+			/* Значение типа дата для записи в ячейку */
+			, p_numFmtId		integer			:= null
+			/* Идентификатор формата */
+			, p_fontId			integer			:= null
+			/* Идентификатор фонта */
+			, p_fillId			integer			:= null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			:= null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		:= null
+			/*	Способ выравнивания в ячейке по вертикали.
+				Допустимые значения для параметра : см. xl_av_...
+			*/
+			, p_horizontal		varchar2		:= null
+			/*	Способ выравнивания в ячейке по горизонтали.
+				Допустимые значения для параметра : см. xl_ah_...
+			*/
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			:= null
+			/*	Размер отступа для текста в ячейке (количество пространства при обычном стиле шрифта).
+				Целое значение, где прирост 1 представляет собой 3 места.
+				Количество пробелов для отступа рассчитывается следующим образом:
+				Количество пробелов для отступа = значение отступа * 3
+			*/
+			, p_shrinkToFit		integer			:= null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	-- Если номер строки и номер стоблца не заполнены, вывод в ячейку не выполняется
+	if p_row is null or p_col is null then return;
+	end if;
+
+	&xl.cell_d
+			( p_row
+			, p_col
+			, p_value
+			, p_numFmtId
+			, p_fontId
+			, p_fillId
+			, p_borderId
+			, p_vertical
+			, p_horizontal
+			, p_wrapText
+			, p_indent
+			, p_shrinkToFit
+			, p_sheet
+			);
+end;
+--
+public procedure cell_v_complex
+/* Запись значения типа строка rtf в ячейку */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			integer
+			/*	Индекс в массиве комплексной строки для записи в ячейку.
+				Подробнее см. процедуру create_complex_string().
+			*/
+			, p_numFmtId		integer			:= null
+			/* Идентификатор формата данных в ячейке */
+			, p_fontId			integer			:= null
+			/* Идентификатор фонта */
+			, p_fillId			integer			:= null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			:= null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		:= null
+			/*	Способ выравнивания в ячейке по вертикали.
+				Допустимые значения для параметра : см. xl_av_...
+			*/
+			, p_horizontal		varchar2		:= null
+			/*	Способ выравнивания в ячейке по горизонтали.
+				Допустимые значения для параметра : см. xl_ah_...
+			*/
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			:= null
+			/*	Количество пространства (нормальной стиль шрифта) отступа для текста в ячейке. */
+			, p_shrinkToFit		integer			:= null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.cell_v_complex
+			( p_row
+			, p_col
+			, p_value
+			, p_numFmtId
+			, p_fontId
+			, p_fillId
+			, p_borderId
+			, p_vertical
+			, p_horizontal
+			, p_wrapText
+			, p_indent
+			, p_shrinkToFit
+			, p_sheet
+			);
+end;
+--
+public procedure hyperlink
+/*	Работа с тэгом
+	<Relationship Type=".../hyperlink" Target="P_URL" TargetMode="External"/>
+*/
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_url				varchar2
+			/* Значение для атрибута Target="..." */
+			, p_value			varchar2		:= null
+			/* Строка в файле xl/sharedStrings.xml */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.hyperlink
+			( p_row
+			, p_col
+			, p_url
+			, p_value
+			, p_sheet
+			);
+end;
+--
+public procedure comment
+/* Добавление комментария к ячейке */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_text			varchar2
+			/* Текст комментария */
+			, p_cell			varchar2		:= null
+			/* Символьный адрес ячейки (в дополнение к p_row и p_col или вместо) */
+			, p_rpr				varchar2		:= null
+			/* Строка свойств для элемента <rPr> у текста комментария */
+			, p_author			varchar2		:= null
+			/* Автор комментария */
+			, p_author_id		integer			:= null
+			/* Идентификатор автора комментария */
+			, p_width			integer			:= 150
+			/* Ширина комментария в pixels */
+			, p_height			integer			:= 100
+			/* Высота комментария в pixels */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.comment
+			( p_row			== p_row
+			, p_col			== p_col
+			, p_text		== p_text
+			, p_cell		== p_cell
+			, p_rpr			== p_rpr
+			, p_author		== p_author
+			, p_author_id	== p_author_id
+			, p_width		== p_width
+			, p_height		== p_height
+			, p_sheet		== p_sheet
+			);
+end;
+
+--
+public procedure merge
+/* Объединение ячеек */
+			( p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки */
+			, p_top				varchar2		:= null
+			/* окантовка верхней линии */
+			, p_bottom			varchar2		:= null
+			/* окантовка нижней линии */
+			, p_left			varchar2		:= null
+			/* окантовка левой линии */
+			, p_right			varchar2		:= null
+			/* окантовка правой линии */
+			, p_allign			varchar2(10)	:= null
+			/*	Строка символов-обозначений выравнивания
+			-	по горизонтали:
+				'R'	- вправо
+				'L'	- влево
+				'C'	- по центру
+			-	по вертикали:
+				'B'	- вниз
+				'T'	- вверх
+				'M'	- по центру
+			*/
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.merge
+			( p_tl_row	== p_tl_row
+			, p_tl_col	== p_tl_col
+			, p_br_row	== p_br_row
+			, p_br_col	== p_br_col
+			, p_top		== p_top
+			, p_bottom	== p_bottom
+			, p_left	== p_left
+			, p_right	== p_right
+			, p_allign	== p_allign
+			, p_sheet	== p_sheet
+			);
+end;
+--
+public procedure list_validation
+/* Сноски для диапозона (системная информация) */
+			( p_sqref_row		integer
+			/*	Строка адреса для значения в тэге <dataValidation />
+				для атрибута sqref="..."
+			*/
+			, p_sqref_col		integer
+			/*	Колонка адреса для значения в тэге <dataValidation />
+				для атрибута sqref="..."
+			*/
+			, p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки */
+			, p_style			varchar2		:= xl_inf_stop
+			/*	Категория ошибки:
+				Допустимые значения для параметра: см. xl_inf_...
+			*/
+			, p_title			varchar2		:= null
+			/* Текст для заголовка */
+			, p_prompt			varchar			:= null
+			/* Текст для подсказки */
+			, p_show_error		boolean			:= false
+			/* Необходимость отображения ошибок */
+			, p_error_title		varchar2		:= null
+			/* Текст для заголовка ошибки */
+			, p_error_txt		varchar2		:= null
+			/* Текст ошибки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.list_validation
+			( p_sqref_row
+			, p_sqref_col
+			, p_tl_row
+			, p_tl_col
+			, p_br_row
+			, p_br_col
+			, p_style
+			, p_title
+			, p_prompt
+			, p_show_error
+			, p_error_title
+			, p_error_txt
+			, p_sheet
+			);
+end;
+--
+public procedure list_validation
+/* Сноски (ValidAlert...) для диапозона (системная информация) */
+			( p_sqref_row		integer
+			/*	Строка адреса для значения в тэге <dataValidation />
+				для атрибута sqref="..."
+			*/
+			, p_sqref_col		integer
+			/*	Колонка адреса для значения в тэге <dataValidation />
+				для атрибута sqref="..."
+			*/
+			, p_defined_name	varchar2
+			/* значение для тэга <formula1> */
+			, p_style			varchar2		:= xl_inf_stop
+			/*	Категория ошибки:
+				Допустимые значения для параметра: см. xl_inf_...
+			*/
+			, p_title			varchar2		:= null
+			/* Текст для заголовка */
+			, p_prompt			varchar			:= null
+			/* Текст для подсказки */
+			, p_show_error		boolean			:= false
+			/* Необходимость отображения ошибок */
+			, p_error_title		varchar2		:= null
+			/* Текст для заголовка ошибки */
+			, p_error_txt		varchar2		:= null
+			/* Текст ошибки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.list_validation
+			( p_sqref_row
+			, p_sqref_col
+			, p_defined_name
+			, p_style
+			, p_title
+			, p_prompt
+			, p_show_error
+			, p_error_title
+			, p_error_txt
+			, p_sheet
+			);
+end;
+--
+public procedure defined_name
+/* Присвоение имени диапазону ячеек */
+			( p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки */
+			, p_name			varchar2
+			/* Имя для диапазона ячеек */
+			, p_sheet			integer			:= null
+			/* Порядковый номер листа */
+			, p_localsheet		integer			:= null
+			/* Идентификатор листа */
+			) is
+begin
+	if p_name is null then
+		return;
+	end if;
+
+	&xl.defined_name
+			( p_tl_row
+			, p_tl_col
+			, p_br_row
+			, p_br_col
+			, p_name
+			, p_sheet
+			, p_localsheet
+			);
+end;
+--
+public procedure defined_name_area
+/*	Получение координат границ диапазона ячеек по его имени
+
+	В шаблоне хранятся абсолютные адреса именованных диапазонов
+	Они могут быть использованы только в момент "чтения" шаблона (сразу после его загрузки в кэш библиотеки XL).
+
+	В процессе наполнения данными корректность абсолютных адресов именованных диапазонов не поддерживается.
+	Чтобы в итоговом файле какие-либо именованные диапазоны отсутствовали (и корректные и некорректные, кроме областей печати),
+	необходимо отключить вывод с помощью вызова процедуры set_defined_name_mode(false);
+*/
+			( p_name	in	out	varchar2
+			/* Имя для диапазона ячеек */
+			, p_tl_row		out	integer
+			/* Строка адреса верхней левой (top left) ячейки */
+			, p_tl_col		out	integer
+			/* Колонка адреса верхней левой (top left) ячейки */
+			, p_br_row		out	integer
+			/* Строка адреса нижней правой (bottom right) ячейки */
+			, p_br_col		out	integer
+			/* Колонка адреса нижней правой (bottom right) ячейки */
+			, p_sheet		out	integer
+			/* Порядковый номер листа */
+			) is
+begin
+	if p_name is null then
+		return;
+	end if;
+
+	&xl.defined_name_area
+			( p_name
+			, p_tl_row
+			, p_tl_col
+			, p_br_row
+			, p_br_col
+			, p_sheet
+			);
+end;
+--
+public procedure set_defined_name_mode
+/* Переключение режима вывода информации об именованых диапазонах ячеек */
+			( P_ACTIVATE		boolean			:= true
+			/* Да - включить, нет - отключить */
+			) is
+begin
+	&xl.set_defined_name_mode(P_ACTIVATE);
+end;
+--
+public procedure SetPrintArea
+/* Установка области печати */
+			( p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки */
+			, p_sheet			integer			:= null
+			/* Порядковый номер листа */
+			) is
+begin
+	&xl.SetPrintArea
+			( p_tl_row	== p_tl_row
+			, p_tl_col	== p_tl_col
+			, p_br_row	== p_br_row
+			, p_br_col	== p_br_col
+			, p_sheet	== p_sheet
+			);
+end;
+--
+public procedure set_column
+/* Установка свойств колонки */
+			( p_col				integer
+			/* Номер колонки */
+			, p_numFmtId		integer			:= null
+			/* Идентификатор формата */
+			, p_fontId			integer			:= null
+			/* Идентификатор фонта */
+			, p_fillId			integer			:= null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			:= null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		:= null
+			/*	Способ выравнивания в ячейке по вертикали. */
+			, p_horizontal		varchar2		:= null
+			/*	Способ выравнивания в ячейке по горизонтали. */
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			:= null
+			/*	Размер отступа для текста в ячейке (количество пространства при обычном стиле шрифта) */
+			, p_shrinkToFit		integer			:= null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_column
+			( p_col
+			, p_numFmtId
+			, p_fontId
+			, p_fillId
+			, p_borderId
+			, p_vertical
+			, p_horizontal
+			, p_wrapText
+			, p_indent
+			, p_shrinkToFit
+			, p_sheet
+			);
+end;
+--
+public procedure set_row
+/* Установка свойств строки */
+			( p_row				integer
+			/* Номер строки */
+			, p_numFmtId		integer			:= null
+			/* Идентификатор формата */
+			, p_fontId			integer			:= null
+			/* Идентификатор фонта */
+			, p_fillId			integer			:= null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			:= null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		:= null
+			/*	Способ выравнивания в ячейке по вертикали. */
+			, p_horizontal		varchar2		:= null
+			/*	Способ выравнивания в ячейке по горизонтали. */
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			:= null
+			/*	Размер отступа для текста в ячейке (количество пространства при обычном стиле шрифта) */
+			, p_shrinkToFit		integer			:= null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_row
+			( p_row
+			, p_numFmtId
+			, p_fontId
+			, p_fillId
+			, p_borderId
+			, p_vertical
+			, p_horizontal
+			, p_wrapText
+			, p_indent
+			, p_shrinkToFit
+			, p_sheet
+			);
+end;
+--
+public procedure freeze_rows
+/* Закрепить строки */
+			( p_nr_rows			integer			:= 1
+			/* Количество строк */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.freeze_rows
+			( p_nr_rows
+			, p_sheet
+			);
+end;
+--
+public procedure freeze_cols
+/* Закрепить колонки */
+			( p_nr_cols			integer			:= 1
+			/* Количество колонок */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.freeze_cols
+			( p_nr_cols
+			, p_sheet
+			);
+end;
+--
+public procedure freeze_pane
+/* Закрепить область */
+			( p_nr_rows			integer
+			/* Количество строк */
+			, p_nr_cols			integer
+			/* Количество колонок */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.freeze_pane
+			( p_nr_rows
+			, p_nr_cols
+			, p_sheet
+			);
+end;
+--
+public procedure set_autofilter
+/* Установить на строке автофильтр */
+			( p_row_start		integer			:= null
+			/* Начальная строка адреса автофильтра */
+			, p_row_end			integer			:= null
+			/* Конечная строка адреса автофильтра */
+			, p_column_start	integer			:= null
+			/* Начальная колонка адреса автофильтра */
+			, p_column_end		integer			:= null
+			/* Конечная колонка адреса автофильтра */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_autofilter
+			( p_row_start
+			, p_row_end
+			, p_column_start
+			, p_column_end
+			, p_sheet
+			);
+end;
+--
+public procedure finish
+/*	Формирование по загруженным данным xlsx файла */
+			( P_XL		in	out	blob
+			/*	Возвращается xlsx файл */
+			) is
+begin
+	&xl.finish(P_XL);
+end;
+--
+public procedure finish
+/*	Формирование по загруженным данным xlsx файла с типом файла (расширением) */
+			( P_XL		in	out	blob
+			/*	Возвращается файл определённого типа: .xlsx, .xlsm, .xltx, .xltm */
+			, P_EXT		in	out	varchar2(8)
+			/*	Обозначение расширения файла по информации из [Content_Types].xml
+				Одно из значений: 'xlsx', 'xlsm', 'xltx' или 'xltm'
+			*/
+			) is
+begin
+	&xl.finish_ext(P_XL, P_EXT);
+end;
+--
+public function plp2pls
+/* Компиляция PL+ запроса в SQL */
+			( p_plsql		varchar2
+				/* Текст PL+ запроса */
+			)
+	/* Возвращает текст SQL */
+	return varchar2 is
+begin
+	return &xl.plp2pls( p_plsql );
+end;
+--
+public function open_file
+/* Зачитывание информации из файла в формате .XLSX */
+			( p_file			blob
+			/* Файл */
+			, p_wo_rich	in		boolean		:= false
+			/* режима чтения текста из файла xl/sharedStrings.xml с потерей форматирования */
+			)
+	/* Возвращается "Да" в случае успеха, "Нет" - в противном случае */
+	return	boolean is
+begin
+	return &xl.open_file( P_FILE, P_WO_RICH );
+end;
+--
+public function getSheetsList
+/* Получение списка листов и имен */
+/* Возвращается перечисление листов*/
+	return rtl.string_table is
+begin
+	return &xl.getSheetsList;
+end;
+--
+public function getSheetNum
+/* Получение номера листа по его имени */
+			( p_sheetname		varchar2
+			/* Наименование листа */
+			)
+	/* Возвращается номер листа */
+	return integer is
+begin
+	return &xl.getSheetNum( p_sheetname );
+end;
+--
+public procedure Open_Sheet
+/* Установка умолчательного значения текущего листа по его номеру */
+			( p_sheet			integer
+			/* Номер листа */
+			) is
+begin
+	&xl.Open_Sheet( p_sheet );
+end;
+--
+public procedure Open_Sheet
+/* Установка умолчательного значения листа по его имени */
+			( p_sheetname		varchar2
+			/* Наименование листа */
+			) is
+begin
+	&xl.Open_Sheet( p_sheetname );
+end;
+--
+public procedure delSheet
+/* Удаление листа по его номеру */
+			( p_sheet			integer
+			/* Номер листа */
+			) is
+begin
+	&xl.delSheet( p_sheet );
+end;
+--
+public procedure delSheet
+/* Удаление листа по его имени */
+			( p_sheetname		varchar2
+			/* Наименование листа */
+			) is
+begin
+	&xl.delSheet( p_sheetname );
+end;
+--
+public function getSheetRowCount
+/* Получение max количества строк на листе. Если лист не задан, то значение вернётся с последнего.
+*/
+		( p_sheet			integer := null
+		 /* Номер листа */
+		)
+/* Возвращается max количество строк на листе */
+	return integer is
+begin
+	return &xl.getSheetRowCount( p_sheet );
+end;
+--
+public function getSheetColCount
+/* Получение max количества столбцов на листе. Если лист не задан, то значение вернётся с последнего.
+*/
+			( p_sheet			integer := null
+			/* Номер листа */
+			)
+	/* Возвращается max количество столбцов на листе */
+	return integer is
+begin
+	return &xl.getSheetColCount( p_sheet );
+end;
+--
+public function getSheetRowColVal
+/* Получение значения по номеру строки и столбцу */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_sheet			integer
+			/* Номер листа */
+			, p_tp			out	varchar2
+			/* Тип ячейки см. xl_tp_...	*/
+			, p_st			out	integer
+			/* Индекс стиля ячейки */
+		)
+	/* Возвращается содержание ячейки */
+	return varchar2 is
+begin
+	return &xl.getSheetRowColVal
+					( p_row
+					, p_col
+					, p_sheet
+					, p_tp
+					, p_st
+					);
+end;
+--
+public function getSheetRowColFormula
+/* Получение значения формулы */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_sheet			integer
+			/* Номер листа */
+			, p_formula		out	varchar2
+			/* формула */
+			)
+	/* Возвращается текущее значение, прописанное в ячейке */
+	return varchar2 is
+begin
+	return &xl.getSheetRowColFormula
+					( p_row
+					, p_col
+					, p_sheet
+					, p_formula
+					);
+end;
+--
+public procedure cell_v_data
+/* Запись строкового значения в ячейку - только данные */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			varchar2
+			/* Строковое значение для записи в ячейку */
+			, p_wrapText		boolean			:= null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			, p_is				boolean			:= null
+			/* Признак хранения строки в ячейке "Inline" (xl\worksheets\sheet<p_sheet>.xml),
+			а не ссылки из общего списка строк (xl\sharedStrings.xml).
+			*/
+			, p_style			integer			:= null
+			/* Индекс стиля ячейки */
+			) is
+begin
+	-- Если номер строки и номер стоблца не заполнены, вывод в ячейку не выполняется
+	if p_row is null or p_col is null then
+		return;
+	end if;
+
+	&xl.cell_v_data
+			( p_row
+			, p_col
+			, p_value
+			, p_wrapText
+			, p_sheet
+			, p_is
+			, p_Style
+			);
+end;
+
+--
+public procedure InitCache
+/* Создание кэша из предварительно прочитанного шаблона с непустым количество листов */ is
+begin
+	&xl.InitCache;
+end;
+
+--
+public procedure OpenCache /* Использование кэша вместо шаблона */ is
+begin
+	&xl.OpenCache;
+end;
+
+--
+public procedure DropCache /* Удаление кэша */ is
+begin
+	&xl.DropCache;
+end;
+--
+public procedure CopyPasteRows
+/* Копирование строк в заданную позицию */
+			( p_src_row_b		integer
+			/* Номер строки начала копирования */
+			, p_src_row_e		integer
+			/* Номер строки конца копирования */
+			, p_row				integer
+			/* Номер строки для вставки */
+			, p_src_sheet		integer default null
+			/* Лист-источник*/
+			, p_sheet			integer default null
+			/* Лист-приёмник, на который происходит копирование */
+			, p_data			boolean default true
+			/* Признак необходимости копировать данные */
+			) is
+begin
+	&xl.CopyPasteRows
+			( p_src_row_b
+			, p_src_row_e
+			, p_row
+			, p_src_sheet
+			, p_sheet
+			, p_data
+			);
+end;
+--
+public procedure PasteSpecial
+/* Установка по образцу одного диапазона формата другого диапазона */
+			( p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки диапазона-образца */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки диапазона-образца */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки диапазона-образца */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки диапазона-образца */
+			, p_tl_row2			integer
+			/* Строка адреса верхней левой (top left) ячейки диапазона */
+			, p_tl_col2			integer
+			/* Колонка адреса верхней левой (top left) ячейки диапазона */
+			, p_br_row2			integer	default null
+			/* Строка адреса нижней правой (bottom right) ячейки диапазона
+			- значение не используется, временно оставлено для совместимости */
+			, p_br_col2			integer	default null
+			/* Колонка адреса нижней правой (bottom right) ячейки диапазона
+			значение не используется, временно оставлено для совместимости */
+			, p_sheet			integer default null
+			/* Номер листа-источника (source) */
+			, p_sheet_t			integer default null
+			/* Номер листа-приёмника (target) */
+			, p_data			boolean default false
+			/* Копировать данные */
+			, p_no_cache		boolean default false
+			/* Не использовать кэш */
+			) is
+begin
+	&xl.PasteSpecial
+			( p_tl_row		== p_tl_row
+			, p_tl_col		== p_tl_col
+			, p_br_row		== p_br_row
+			, p_br_col		== p_br_col
+			, p_tl_row2		== p_tl_row2
+			, p_tl_col2		== p_tl_col2
+			, p_sheet		== p_sheet
+			, p_sheet_t		== p_sheet_t
+			, p_data		== p_data
+			, p_no_cache	== p_no_cache
+			);
+end;
+
+/*---Функции добавлены для совместимости ---*/
+
+public procedure Write
+/* Запись указанного значения в ячейку по указанному адресу */
+			( p_row			integer
+			/* номер строки адреса ячейки */
+			, p_col			integer
+			/* номер колонки адреса ячейки */
+			, value			varchar2(32767)		default null
+			/* Значение для записи в ячейку */
+			, Bold			boolean				default false
+			/* Признак выделения жирным шрифтом */
+			, Italic		boolean				default false
+			/* Признак выделения шрифта курсивом */
+			, p_size		number				default null
+			/* Размер шрифта */
+			, FontName		varchar2(50)		default null
+			/* Имя фонта */
+			, Allighment	varchar2(10)		default null
+			/*	Строка символов-обозначений выравнивания
+			-	по горизонтали:
+				'R'	- вправо
+				'L'	- влево
+				'C'	- по центру
+			-	по вертикали:
+				'B'	- вниз
+				'T'	- вверх
+				'M'	- по центру
+			*/
+			, p_wrapText	boolean	default null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_sheet		integer default null
+			/* Номер листа */
+			) is
+	v_font_id		integer;
+	v_l				varchar2(10);
+	v_vertical		varchar2(16);
+	v_horizontal	varchar2(16);
+begin
+	v_font_id	:= get_font
+		( p_name			== nvl(FontName,'Calibri')
+		, p_family			== 2
+		, p_fontsize		== nvl(p_size,11)
+		, p_theme			== 1
+		, p_underline		== false
+		, p_italic			== nvl(Italic,false)
+		, p_bold			== nvl(Bold,false)
+		, p_rgb				== null
+		);
+
+	for i in 1..nvl(length(Allighment),0) loop
+		v_l	:= substr(Allighment, i, 1);
+		case v_l of
+			:'R':	v_horizontal	:= xl_ah_right;
+			:'L':	v_horizontal	:= xl_ah_left;
+			:'C':	v_horizontal	:= xl_ah_center;
+			:'B':	v_vertical		:= xl_av_bottom;
+			:'T':	v_vertical		:= xl_av_top;
+			:'M':	v_vertical		:= xl_av_center;
+		end;
+	end loop;
+	&xl.cell_v
+		( p_row				== p_row
+		, p_col				== p_col
+		, p_value			== to_char(value)
+		, p_numFmtId		== null
+		, p_fontId			== v_font_id
+		, p_fillId			== null
+		, p_borderId		== null
+		, p_vertical		== v_vertical
+		, p_horizontal		== v_horizontal
+		, p_wrapText		== p_wrapText
+		, p_indent			== null
+		, p_shrinkToFit		== null
+		, p_sheet			== nvl(p_sheet,null)
+		);
+end;
+--
+public procedure Allign
+/* Установка выравнивания */
+			( p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки диапазона */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки диапазона */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки диапазона */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки диапазона */
+			, p_patt			varchar2(10)
+			/*	Строка символов-обозначений выравнивания
+			-	по горизонтали:
+				'R'	- вправо
+				'L'	- влево
+				'C'	- по центру
+			-	по вертикали:
+				'B'	- вниз
+				'T'	- вверх
+				'M'	- по центру
+			*/
+			, p_sheet			integer default null
+			/* Номер листа */
+			) is
+begin
+	&xl.Allign
+			( p_tl_row	== p_tl_row
+			, p_tl_col	== p_tl_col
+			, p_br_row	== p_br_row
+			, p_br_col	== p_br_col
+			, p_patt	== p_patt
+			, p_sheet	== p_sheet
+			);
+end;
+--
+public procedure Set_Format_Range
+/* Установка для диапазона ячеек варианта выравнивания и/или формата */
+			( p_tl_row			integer
+			/* Строка адреса верхней левой (top left) ячейки диапазона */
+			, p_tl_col			integer
+			/* Колонка адреса верхней левой (top left) ячейки диапазона */
+			, p_br_row			integer
+			/* Строка адреса нижней правой (bottom right) ячейки диапазона */
+			, p_br_col			integer
+			/* Колонка адреса нижней правой (bottom right) ячейки диапазона */
+			, p_numFmtId		integer			default	null
+			/* Идентификатор формата */
+			, p_fontId			integer			default	null
+			/* Идентификатор фонта */
+			, p_fillId			integer			default	null
+			/* Идентификатор для тэга <fills /> */
+			, p_borderId		integer			default	null
+			/* Идентификатор окантовок */
+			, p_vertical		varchar2		default	null
+			/*	Способ выравнивания в ячейке по вертикали.
+				Допустимые значения для параметра : см. xl_av_...
+			*/
+			, p_horizontal		varchar2		default	null
+			/*	Способ выравнивания в ячейке по горизонтали.
+				Допустимые значения для параметра : см. xl_ah_...
+			*/
+			, p_wrapText		boolean			default	null
+			/* Необходимость переноса данных в ячейке по словам */
+			, p_indent			integer			default	null
+			/*	Количество пространства (нормальной стиль шрифта) отступа для текста в ячейке.
+				Целое значение, где прирост 1 представляет собой 3 места.
+				Количество пробелов для отступа рассчитывается следующим образом:
+				Количество пробелов для отступа = значение отступа * 3
+			*/
+			, p_shrinkToFit		integer			default	null
+			/* Автоподбор размеров строки / столбца: 1 - да, 0 - нет */
+			, p_sheet			integer			default	null
+			/* Номер листа */
+			) is
+begin
+	&xl.Set_Format_Range
+			( p_tl_row			== p_tl_row
+			, p_tl_col			== p_tl_col
+			, p_br_row			== p_br_row
+			, p_br_col			== p_br_col
+			, p_numFmtId		== p_numFmtId
+			, p_fontId			== p_fontId
+			, p_fillId			== p_fillId
+			, p_borderId		== p_borderId
+			, p_vertical		== p_vertical
+			, p_horizontal		== p_horizontal
+			, p_wrapText		== p_wrapText
+			, p_indent			== p_indent
+			, p_shrinkToFit		== p_shrinkToFit
+			, p_sheet			== p_sheet
+			);
+end;
+--
+public procedure put
+/* Запись числового значения в ячейку */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			number
+			/* Числовое значение для записи в ячейку */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+	v	varchar2(40);
+begin
+	v	:= LongNum2Str( p_value );
+
+	if  v is null then
+		&xl.put
+			( p_row		== p_row
+			, p_col		== p_col
+			, p_value	== p_value
+			, p_sheet	== p_sheet
+			);
+	else
+		-- из-за некорректного отображения в Excel'e чисел длиннее 15
+		&xl.put_v
+			( p_row		== p_row
+			, p_col		== p_col
+			, p_value	== v
+			, p_sheet	== p_sheet
+			);
+	end if;
+end;
+--
+public procedure put
+/* Запись строкового значения в ячейку */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_value			varchar2
+			/* Строковое значение для записи в ячейку */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.put_v
+		( p_row		== p_row
+		, p_col		== p_col
+		, p_value	== p_value
+		, p_sheet	== p_sheet
+		);
+end;
+--
+public procedure Formula
+/* Передача формулы в ячейки */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_formula			varchar2(2000)
+			/* Строка формулы */
+			, p_copy_cols		integer			:=	0
+			/* Сколько ячеек вправо сдублировать формулу */
+			, p_copy_rows		integer			:=	0
+			/* Сколько ячеек вниз сдублировать формулу */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			, p_value_f			varchar2		:= null
+			/* Строковый результат вычисленной формулы */
+			) is
+begin
+	&xl.Formula
+			( p_row			== p_row
+			, p_col			== p_col
+			, p_formula		== p_formula
+			, p_copy_cols	== p_copy_cols
+			, p_copy_rows	== p_copy_rows
+			, p_sheet		== p_sheet
+			, p_value_f		== p_value_f
+			);
+end;
+--
+public procedure ClearFormula
+/* Очистка формулы в ячейке */
+			( p_row				integer
+			/* Строка адреса ячейки */
+			, p_col				integer
+			/* Колонка адреса ячейки */
+			, p_sheet			integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.ClearFormula
+			( p_row			== p_row
+			, p_col			== p_col
+			, p_sheet		== p_sheet
+			);
+end;
+--
+public procedure PutPageBreak
+/* Добавление разрыва страницы после указанной строки */
+			( p_row					integer
+			/* Номер строки */
+			, p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.PutPageBreak
+			( p_row		== p_row
+			, p_sheet	== p_sheet
+			);
+end;
+--
+public procedure fit_in_page_width
+/* Вписать данные в страницу по ширине */
+			( p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.fit_in_page_width( p_sheet );
+end;
+--
+public procedure set_orientation
+/* Установка ориентации страницы */
+			( p_orientation			integer
+			/* Ориентации страницы. Значения: 1 - Альбомная, 2 - Книжная. */
+			, p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_orientation
+			( p_orientation	== p_orientation
+			, p_sheet		== p_sheet
+			);
+end;
+--
+public function alfan_col
+/* Преобразование номера колонки как числового значения в строковое обозначение */
+			( p_col				integer
+			/* Номер колонки */
+			)
+	/* Возвращает строковое обозначение колонки */
+	return varchar2 is
+begin
+	return	&kit.alfan_col( p_col );
+end;
+--
+public function col_alfan
+/* Преобразование строкового обозначения колонки в числовое значение */
+			( p_col				varchar2
+			/* Строковое обозначение колонки */
+			)
+	/* Возвращает числовое значение колонки */
+	return	integer is
+begin
+	return &kit.col_alfan( p_col );
+end;
+--
+public procedure fit_in_page
+/* Установка масштаба листа при отображении */
+			( p_Sheet				integer			:= null
+			/* Номер листа */
+			, p_FitToHeight			integer			:= null
+			/* Количество страниц в высоту */
+			, p_FitToWidth			integer			:= null
+			/* Количество страниц в ширину  */
+			, p_Scale				integer			:= null
+			/* Масштаб в процентах */
+			) is
+begin
+	&xl.fit_in_page
+			( p_Sheet		== p_Sheet
+			, p_FitToHeight	== p_FitToHeight
+			, p_FitToWidth	== p_FitToWidth
+			, p_Scale		== p_Scale
+			);
+end;
+--
+public procedure set_PaperSize
+/* Установка размера страницы */
+			( p_paperSize			integer
+			/* Размер страницы */
+			, p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.set_PaperSize
+			( p_paperSize	== p_paperSize
+			, p_sheet		== p_sheet
+			);
+end;
+--
+public procedure RenameSheet
+/* Установка нового имени указанного листа */
+			( p_sheet_num			integer
+			/* Номер листа */
+			, p_sheet_name			varchar2
+			/* Наименование листа */
+			) is
+begin
+	if p_sheet_name is null or p_sheet_num is null then
+		return;
+	end if;
+
+	if instr( p_sheet_name, '''') > 0 then
+		pragma error('Используйте новое имя листа без символов одинарной кавычки');
+	end if;
+
+	&xl.RenameSheet(p_sheet_num, p_sheet_name);
+end;
+--
+public procedure replace_image
+/* Замена изображения в шаблоне по индексу */
+			( p_idx			in		integer
+			/* Индекс изображения в шаблоне */
+			, p_img			in	out	blob
+			/* Изображение */
+			, p_sheet		in		integer	:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.replace_image
+			( p_idx
+			, p_img
+			, p_sheet
+			);
+end;
+--
+public procedure replace_image_by_name
+/*	Замена изображения в шаблоне по имени.
+	Внимание! Отображение одного и того же медиафайла может присутствовать несколько раз
+	и на разных листах. Изображения могут быть по-разному проименованы
+	(например, на одном листе умолчательное название "Рисунок 1", а на другом "SIGN_PIC_1").
+	Но при замене одного изображения результат отобразится на всех копиях указанного
+	в p_name изображения независимо от разных наименований на разных листах.
+*/
+			( p_name		in		varchar2(512)
+			/* Уникальное имя файла изображения в шаблоне */
+			, p_img			in	out	blob
+			/* Изображение */
+			, p_sheet		in		integer	:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.replace_image_by_name
+			( p_name
+			, p_img
+			, p_sheet
+			);
+end;
+--
+public procedure Change_Image_Coord
+/*
+	Изменение начальных координат изображения по имени.
+	Пропорции изображения сохраняются.
+*/
+			( p_name		in		varchar(512)
+			/* Уникальное имя изображения в шаблоне */
+			, p_new_row		in		integer
+			/* Новое значение строки */
+			, p_new_col		in		integer
+			/* Новое значение колонки */
+			, p_sheet		in		integer	:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.Change_Image_Coord
+			( p_name
+			, p_new_row
+			, p_new_col
+			, p_sheet
+			);
+end;
+--
+public procedure create_complex_string
+/* Формирование строки с дополнительным форматированием (RTF) */
+			( p_idx_str				number
+			/* Номер строки */
+			, p_idx_part			number
+			/* Номер части в строке */
+			, p_txt					varchar2
+			/* Строка текста */
+			, p_spc					boolean		:= true
+			/* Признак необходимости окаймляющих пробелов */
+			, p_b					boolean		:= false
+			/* Признак жирного шрифта */
+			, p_charset				number		:= null
+			/* Номер кодовой страницы */
+			, p_family				number		:= null
+			/* Тема шрифта */
+			, p_i					boolean		:= false
+			/* Признак наклонного шрифта */
+			, p_outline				boolean		:= false
+			/* Признак отображения внутренних и внешних границ символа */
+			, p_rFont				varchar2	:= null
+			/* Семейство шрифтов */
+			, p_scheme				varchar2	:= null
+			/* Схема */
+			, p_shadow				boolean		:= false
+			/* Признак затемнённого шрифта */
+			, p_strike				boolean		:= false
+			/* Признак зачеркнутого шрифта */
+			, p_sz					number		:= null
+			/* Размер шрифта */
+			, p_u					boolean		:= false
+			/* Признак необходимости подчёркивания */
+			, p_vertAlign			varchar2	:= null
+			/*	Признак необходимости вертикального выравнивания
+				принимает значения xl_va_baseline,xl_va_superscript,xl_va_subscript
+			*/
+			, p_RGB					varchar2	:= null
+			/*	Цвет. 16-тиричное символьное значение
+				"Прозрачность Красный Зелёный Синий" (alpha red green blue)
+				(например, 'FFFF0000')
+				URL=http://en.wikipedia.org/wiki/RGBA_color_space
+			*/
+			) is
+begin
+	&xl.create_complex_string
+			( p_idx_str
+			, p_idx_part
+			, p_txt
+			, p_spc
+			, p_b
+			, p_charset
+			, p_family
+			, p_i
+			, p_outline
+			, p_rFont
+			, p_scheme
+			, p_shadow
+			, p_strike
+			, p_sz
+			, p_u
+			, p_vertAlign
+			, p_rgb
+			);
+end;
+--
+public function GetVars
+/*	Получение списка переменных шаблона - строк внутри двойных фигурных скобок {{}} -
+	с целью последующего формирования списка замены, а затем её выполнения с помощью процедуры PutVars
+*/
+	/* Возвращается pl/sql таблица с переменными шаблона */
+	return STRING_TABLE_S is
+begin
+	return &xl.GetVars;
+end;
+--
+public procedure PutVars
+/* Запись значений для списка переменных шаблона */
+			( P_STR_TAB	in	out	STRING_TABLE_S
+			/* Список значений переменных шаблона */
+			) is
+begin
+	&xl.PutVars( P_STR_TAB	== P_STR_TAB);
+end;
+--
+public function get_merged_range
+	/* По номеру ячейки возвращает признак того, что ячейка объединена,
+		и границы диапазона объединенных ячеек
+	*/
+			( p_row					integer
+			/* Строка адреса ячейки */
+			, p_col					integer
+			/* Колонка адреса ячейки */
+			, p_tl_row		in	out	integer
+			/* Строка адреса верхней левой (top left) ячейки объединенного диапазона */
+			, p_tl_col		in	out	integer
+			/* Колонка адреса верхней левой (top left) ячейки объединенного диапазона */
+			, p_br_row		in	out	integer
+			/* Строка адреса нижней правой (bottom right) ячейки объединенного диапазона */
+			, p_br_col		in	out	integer
+			/* Колонка адреса нижней правой (bottom right) ячейки объединенного диапазона */
+			, p_sheet				integer		:= null
+			/* Номер листа */
+			)
+	/* Возвращает признак того, что ячейка объединена */
+	return boolean is
+begin
+	return &xl.get_merged_range
+			( p_row		== p_row
+			, p_col		== p_col
+			, p_tl_row	== p_tl_row
+			, p_tl_col	== p_tl_col
+			, p_br_row	== p_br_row
+			, p_br_col	== p_br_col
+			, p_sheet	== p_sheet
+			);
+end;
+--
+public function a1_r1c1
+/*	Перевод строки выражения с адресами ячеек из нотации R1C1 в нотацию A1
+	для ячейки с адресом ( P_COL, P_ROW )
+*/
+			( p_row					integer			/* Номер строки */
+			, p_col					integer			/* Номер колонки */
+			, p_expression			varchar2		/* Строка выражения в нотации R1C1 */
+			)
+	/* Возвращает строку выражения с адресами ячеек в нотации A1*/
+	return varchar2 is
+begin
+	return &f.a1_r1c1
+			( p_row			== p_row
+			, p_col			== p_col
+			, p_expression	== p_expression
+			);
+end;
+--
+public procedure set_page_margins
+/*	Устанавливает значения полей у заданного листа */
+			( p_sheet				integer	:= null
+			/*	Номер листа */
+			, p_left				number	:= null
+			/*	Значение размера поля слева */
+			, p_right				number	:= null
+			/*	Значение размера поля справа */
+			, p_top					number	:= null
+			/*	Значение размера поля сверху */
+			, p_bottom				number	:= null
+			/*	Значение размера поля снизу */
+			, p_header				number	:= null
+			/*	Значение размера колонтитула сверху */
+			, p_footer				number	:= null
+			/*	Значение размера колонтитула снизу */
+			) is
+begin
+	&xl.set_page_margins
+			( p_left		== p_left
+			, p_right		== p_right
+			, p_top			== p_top
+			, p_bottom		== p_bottom
+			, p_header		== p_header
+			, p_footer		== p_footer
+			, p_sheet		== p_sheet
+			);
+end;
+--
+public procedure headerFooter
+/*	Установка верхнего и нижнего колонтитулов.
+	Позиция для левой части, центра и правой части задаётся соответствующими параметрами.
+*/
+			( p_HeaderLeft			varchar2		:= null
+			/* Верхний колонтитул для левой части */
+			, p_HeaderCenter		varchar2		:= null
+			/* Верхний колонтитул для центральной части */
+			, p_HeaderRight			varchar2		:= null
+			/* Верхний колонтитул для правой части */
+			, p_FooterLeft			varchar2		:= null
+			/* Нижний колонтитул для левой части */
+			, p_FooterCenter		varchar2		:= null
+			/* Нижний колонтитул для центральной части */
+			, p_FooterRight			varchar2		:= null
+			/* Нижний колонтитул для правой части */
+			, p_type				integer			:= 0
+			/* Тип страницы для колонтитула:
+				0	- нечётная
+				1	- первая
+				2	- чётная
+			*/
+			, p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.headerFooter
+			( p_HeaderLeft		== p_HeaderLeft
+			, p_HeaderCenter	== p_HeaderCenter
+			, p_HeaderRight		== p_HeaderRight
+			, p_FooterLeft		== p_FooterLeft
+			, p_FooterCenter	== p_FooterCenter
+			, p_FooterRight		== p_FooterRight
+			, p_type			== p_type
+			, p_sheet			== p_sheet
+			);
+end;
+--
+public procedure Group_Rows
+/* Группировка строк */
+			( p_row_start			integer
+			/* Начальный номер строки диапазона */
+			, p_row_end				integer			:= null
+			/* Конечный номер строки диапазона */
+			, p_summary_above		boolean			:= false
+			/* Направление вверх для группировки */
+			, p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.Group_Rows
+			( p_row_start		== p_row_start
+			, p_row_end			== p_row_end
+			, p_summary_above	== p_summary_above
+			, p_sheet			== p_sheet
+			);
+end;
+--
+public procedure Group_Columns
+/* Группировка колонок */
+			( p_column_start		integer
+			/* Начальный номер колонки диапазона */
+			, p_column_end			integer			:= null
+			/* Конечный номер колонки диапазона */
+			, p_width_val			number			:= 8.43
+			/* Умолчательное значение ширины колонки */
+			, p_summary_left		boolean			:= false
+			/* Направление влево для группировки */
+			, p_sheet				integer			:= null
+			/* Номер листа */
+			) is
+begin
+	&xl.Group_Columns
+			( p_column_start	== p_column_start
+			, p_column_end		== p_column_end
+			, p_width_val		== p_width_val
+			, p_summary_left	== p_summary_left
+			, p_sheet			== p_sheet
+			);
+end;
+--
+public procedure SetSheetProtection
+/* Установка защиты на лист */
+			( p_sheet				integer
+			/* Номер листа */
+			, p_pass				varchar2(255)
+			/* пароль, только латинские символы */
+			, p_selectLockedCells	boolean default null
+			/* (@selectLockedCells)		- разрешить выделение заблокированных ячеек */
+			, p_selectUnlockedCells	boolean default null
+			/* (@selectUnlockedCells)	- разрешить выделение неразблокированных ячеек */
+			, p_FormatCells			boolean default null
+			/* (@formatCells)			- разрешить форматирование ячеек */
+			, p_FormatColumns		boolean default null
+			/* (@formatColumns)			- разрешить форматирование колонок */
+			, p_FormatRows			boolean default null
+			/* (@formatRows)			- разрешить форматирование строк */
+			, p_InsertColumns		boolean default null
+			/* (@insertColumns)			- разрешить вставку колонок */
+			, p_InsertRows			boolean default null
+			/* (@insertRows)			- разрешить вставку строк */
+			, p_InsertHyperlinks	boolean default null
+			/* (@insertHyperlinks)		- разрешить вставку гиперссылок */
+			, p_DeleteColumns		boolean default null
+			/* (@deleteColumns)			- разрешить удаление колонок */
+			, p_DeleteRows			boolean default null
+			/* (@deleteRows)			- разрешить удаление строк */
+			, p_Sort 				boolean default null
+			/* (@sort)					- разрешить сортировку */
+			, p_AutoFilter			boolean default null
+			/* (@autoFilter)			- разрешить использование автофильтра */
+			, p_PivotTables			boolean default null
+			/* (@pivotTables)			- разрешить использование отчетов сводной таблицы */
+			, p_objects				boolean default null
+			/* (@objects)				- разрешить изменение объектов */
+			, p_scenarios			boolean default null
+			/* (@scenarios)				- разрешить изменение сценариев */
+			) is
+begin
+	&xlprot.SetSheetProtection
+			( p_sheet				== p_sheet
+			, p_pass				== p_pass
+			, p_selectLockedCells	== p_selectLockedCells
+			, p_selectUnlockedCells	== p_selectUnlockedCells
+			, p_FormatCells			== p_FormatCells
+			, p_FormatColumns		== p_FormatColumns
+			, p_FormatRows			== p_FormatRows
+			, p_InsertColumns		== p_InsertColumns
+			, p_InsertRows			== p_InsertRows
+			, p_InsertHyperlinks	== p_InsertHyperlinks
+			, p_DeleteColumns		== p_DeleteColumns
+			, p_DeleteRows			== p_DeleteRows
+			, p_Sort				== p_Sort
+			, p_AutoFilter			== p_AutoFilter
+			, p_PivotTables			== p_PivotTables
+			, p_objects				== p_objects
+			, p_scenarios			== p_scenarios
+			);
+end;
+--
+public procedure ready
+/*	Сохранение данных указанного листа из PL/SQL таблицы в CLOB */
+			( p_sheet			integer		/* Номер листа */
+			) is
+begin
+	&xl.ready( p_sheet == p_sheet );
+end;
+end;
