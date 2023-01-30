@@ -1,0 +1,7 @@
+@dictionary
+@entity('TYPE')
+@name('Обновления. Журнал')
+class CONV_JOUR {
+	@name('Идентификация обновления (например, строка запуска операции)') IDENT    [STRING_250];
+	@name('Дата и время исполнения')                                      DATE_EXP [DATE_TIME];
+}
