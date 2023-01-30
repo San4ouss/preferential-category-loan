@@ -1,0 +1,4 @@
+@entity('PRODUCT')
+@name('Обновления версии (прикладные)')
+class CONV_APPL extends CONV {
+}

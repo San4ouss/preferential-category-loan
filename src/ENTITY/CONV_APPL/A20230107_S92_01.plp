@@ -1,0 +1,85 @@
+class CONV_APPL;
+
+@name('S92. Проставление категории из справочника S92. Кредиты. Категория ссуды')
+static method A20230107_S92_01 is
+
+A20230107_S92_01
+
+	 is
+
+validate is
+
+begin
+	if P_MESSAGE = 'DEFAULT' then
+		null;
+	end if;
+end;
+
+execute is
+	s1 string;
+	refS92_cr_categoty ref [S92_CR_CATEGORY];
+	isRun ref [CONV_JOUR];
+	type t_refs_tb1 is table of ref [KRED_PERS];
+	tRefs t_refs_tb1;
+
+begin
+	-- Инициализируем LOG, открываем его
+	::[CONV].[LOG].INITLOG(
+							P_FILE_NAME == 'U20220107_S92_01.LOG', 
+							P_TIME == true
+							);
+	
+	-- Выводим сообщение
+	::[CONV].[LOG].WRITEMESS('Начало выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+	pragma SUBSTITUTE(false);
+	isRun := ::[CONV_JOUR]([IDENT] = '[CONV_APPL].[A20230107_S92_01]');
+	
+	::[CONV].[LOG].WRITEMESS('rRec.[IDENT]=' || isRun.[IDENT]);
+	
+	if isRun is null then
+		::[CONV].[LOG].WRITEMESS('Проставляем категорию для кредитных договоров с типом проекта "S92_PREF_LOAN"');
+		
+		select x(x) in ::[KRED_PERS] all
+		where x.[PRJ_KIND_CRED] = ::[KIND_PROJECT]([CODE] = 'S92_PREF_LOAN')
+		and x.[DATE_CLOSE] is null
+		and x not in (select a(a.[CREDIT]) in ::[S92_CR_TO_CATEG] all)
+		into tRefs;
+		
+		::[CONV].[LOG].WRITEMESS('В массиве кол-во записей: ' || tRefs.count);
+		
+		if tRefs.count = 0 then
+			::[CONV].[LOG].WRITEMESS('У всех экземляров в ТБП [KRED_PERS] категория уже проставлена');
+		
+		else
+			for i in 1..tRefs.count loop
+				--В зависимости от даты открытия договора будем проставлять категорию
+				s1 := to_char(tRefs(i).[DATE_BEGIN], 'W');
+				::[CONV].[LOG].WRITEMESS('Переменная s1 приняла значение: ' || s1 || ', следовательно будет проставлена категория с этим Кодом');
+				refS92_cr_categoty := ::[S92_CR_CATEGORY]([CODE] = s1);
+				
+				if refS92_cr_categoty is not null then
+					::[S92_CR_TO_CATEG].[NEW_AUTO](
+												P_CREDIT==tRefs(i)%id -- Кредит
+												,P_START==tRefs(i).[DATE_BEGIN] -- Дата начала
+												,P_END==null -- Дата окончания
+												,P_CATEGORY==refS92_cr_categoty-- Категория
+												);
+					
+					::[CONV].[LOG].WRITEMESS('В справочник [S92_CR_TO_CATEG] был добавлен экземпляр с номером договора: ' || tRefs(i).[NUM_DOG]);
+				else
+					::[CONV].[LOG].WRITEMESS('Категория не была найдена в справочнике [S92_CR_CATEGORY], запись в справочник [S92_CR_TO_CATEG] добавлена не будет');
+				end if;
+			end loop;
+		end if;
+	else
+		::[CONV].[LOG].WRITEMESS('строка с наименованием ' || isRun.[IDENT] 
+			|| ' существует в справочнике [CONV_JOUR], выполнение операции невозможно');
+	end if;
+	
+	-- Закрываем LOG
+	::[CONV].[LOG].INITLOG();
+end;
+
+end; 
+end; 
