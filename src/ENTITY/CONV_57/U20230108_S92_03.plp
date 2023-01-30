@@ -1,0 +1,71 @@
+class CONV_57;
+
+@name('S92. Удаление данных') 
+static method U20230108_S92_03 is
+pragma INCLUDE(::[RUNTIME].[MACRO_LIB]);
+
+U20230108_S92_03
+
+	 is
+
+validate is
+begin
+	if P_MESSAGE = 'DEFAULT' then
+		null;
+	end if;
+end;
+
+execute is
+ref_auxapp_method ref [AUXAPP_METHOD];
+ref_calc_params ref [CALC_PARAMS];
+begin
+	-- Инициализируем LOG, открываем его
+	::[CONV].[LOG].INITLOG(
+							P_FILE_NAME == 'U20230107_S92_02.LOG', 
+							P_TIME == true
+							);
+	
+	-- Выводим сообщение
+	::[CONV].[LOG].WRITEMESS('Начало выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+	/*
+	 * В первую очередь мы должны удалить данные из справочника [S92_CR_TO_CATEG], чтобы избавиться от ссылочной целости у КД в ТБП [PR_CRED]
+	 * Только после того как мы избавимся от ссылочной целостности, то сможем удалить категории из справочника [S92_CR_CATEGORY]
+	 */
+	::[CONV].[LOG].WRITEMESS('Удаляем данные из справочника [S92_CR_TO_CATEG]');
+	delete a in ::[S92_CR_TO_CATEG] all;
+	::[CONV].[LOG].WRITEMESS('Были удалены все записи из справочника [S92_CR_TO_CATEG]');
+	
+	::[CONV].[LOG].WRITEMESS('Удаляем данные из справочника [S92_CR_CATEGORY]');
+	delete a in ::[S92_CR_CATEGORY] all;
+	::[CONV].[LOG].WRITEMESS('Были удалены все записи из справочника [S92_CR_CATEGORY]');
+	
+	::[CONV].[LOG].WRITEMESS('Удаляем метод из массива [AUXAPP_METHOD] справочника [APPAUX_CALLPOINT]');
+	pragma SUBSTITUTE(false);
+	ref_auxapp_method := ::[APPAUX_CALLPOINT](CODE = 'MD_FOR_PROV').[METHODS](CLS = 'MAIN_DOCUM' and SNAME = 'S92_MARK_CATEG');
+	if ref_auxapp_method is not null then
+		ref_auxapp_method.[DELETE#AUTO](true);
+		::[CONV].[LOG].WRITEMESS('В массиве [AUXAPP_METHOD] запись с классом = "MAIN_DOCUM" и именем = "S92_MARK_CATEG" была удалена');
+	else
+		::[CONV].[LOG].WRITEMESS('Запись с классом = "MAIN_DOCUM" и именем = "S92_MARK_CATEG" не существует в массиве [AUXAPP_METHOD]');
+	end if;
+	
+	::[CONV].[LOG].WRITEMESS('Удаляем экземпляр из справочника [CALC_PARAMS]');
+	ref_calc_params := ::[CALC_PARAMS]([CODE] = 'S92_ЛЬГОТ_КОЭФ');
+	if ref_calc_params is not null then
+		delete a in ::[CALC_PARAMS] all
+		where a.[CODE] = 'S92_ЛЬГОТ_КОЭФ';
+		::[CONV].[LOG].WRITEMESS('В справочнике [CALC_PARAMS] запись с кодом = "S92_ЛЬГОТ_КОЭФ" была удалена');
+	else
+		::[CONV].[LOG].WRITEMESS('Запись с кодом = "S92_ЛЬГОТ_КОЭФ" не существует в справочнике [CALC_PARAMS]');
+	end if;
+	
+	::[CONV].[LOG].WRITEMESS('Конец выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+	-- Закрываем LOG
+	::[CONV].[LOG].INITLOG();
+
+end;
+
+end; 
+end; 

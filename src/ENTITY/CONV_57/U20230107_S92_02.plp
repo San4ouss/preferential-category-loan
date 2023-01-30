@@ -1,0 +1,122 @@
+class CONV_57;
+
+@name('S92. Операция конвертации для добавления данных') 
+static method U20230107_S92_02 is
+
+U20230107_S92_02
+
+	 is
+
+validate is
+
+begin
+	if P_MESSAGE = 'DEFAULT' then
+		null;
+	end if;
+end;
+
+execute is
+	ref_appaux_callpoint ref [APPAUX_CALLPOINT];
+	ref_auxapp_method ref [AUXAPP_METHOD];
+	last_priority [SHORT2] default 1;
+	
+	ref_calc_params ref [CALC_PARAMS];
+
+begin
+	-- Инициализируем LOG, открываем его
+	::[CONV].[LOG].INITLOG(
+							P_FILE_NAME == 'U20230107_S92_02.LOG', 
+							P_TIME == true
+							);
+	
+	-- Выводим сообщение
+	::[CONV].[LOG].WRITEMESS('Начало выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+	-- Проверяем наличие метода с кодом MD_FOR_PROV в справочнике [APPAUX_CALLPOINT]
+	pragma SUBSTITUTE(false);
+	ref_appaux_callpoint := ::[APPAUX_CALLPOINT](CODE = 'MD_FOR_PROV');
+	
+	if ref_appaux_callpoint is not null then
+		::[CONV].[LOG].WRITEMESS('Найден  метод с кодом= ' || ref_appaux_callpoint.[CODE] || ' , и id= ' || ref_appaux_callpoint%id 
+		|| ' в справочнике [APPAUX_CALLPOINT]');
+		
+		begin
+			-- Проверяем наличие записи в массиве [AUXAPP_METHOD] c классом 'MAIN_DOCUM' и именем 'S92_MARK_CATEG
+			ref_auxapp_method := ref_appaux_callpoint.[METHODS](CLS = 'MAIN_DOCUM' and SNAME = 'S92_MARK_CATEG');
+			::[CONV].[LOG].WRITEMESS('Найден экземпляр с классом= ' || ref_auxapp_method.[CLS] || ' , и именем= ' || ref_auxapp_method.[SNAME] 
+					|| ' в массиве [AUXAPP_METHOD]');
+			if ref_auxapp_method is null then
+			
+				-- Находим последний существующий приоритет для экземпляров в массиве [METHODS]
+				select x(max(x.[PRIORITY])) in ::[AUXAPP_METHOD] all where x%collection = ref_appaux_callpoint.[METHODS]%collection 
+				into last_priority;
+				
+				-- Делаем наш приоритет на 1 старше последнего найденного, учитывая что он не может принять значение больше 99
+				if last_priority != 99 then
+					last_priority := last_priority + 1;
+				end if;
+				
+				::[CONV].[LOG].WRITEMESS('Приоритет примет значение last_priority= ' || to_char(last_priority));
+					
+				-- Чтобы перекомпилировать точку вызова, последнее значение должно быть true
+				ref_appaux_callpoint.[METHODS].[NEW#AUTO](
+															P_GRP == null --Группа
+															,P_PRIORITY == last_priority --Приоритет
+															,P_CLS == 'MAIN_DOCUM' --ТБП
+															,P_SNAME == 'S92_MARK_CATEG' --Метод
+															,P_PLP_CODE == null --PL+Код постобработки
+															,P_COMP == true --Перекомпилировать точку вызова
+															);
+				
+				::[CONV].[LOG].WRITEMESS('Добавлена запись в массив');
+			
+			else
+				::[CONV].[LOG].WRITEMESS('Экземпляр с именем= ' || ref_auxapp_method.[SNAME] || ' и классом= ' 
+					|| ref_auxapp_method.[CLS] ||  ' уже существует в массиве [AUXAPP_METHOD]');
+			end if;
+		end;
+	
+	else
+		::[CONV].[LOG].WRITEMESS('Метода с кодом MD_FOR_PROV в справочнике [APPAUX_CALLPOINT] не существует');
+	end if;
+	
+	/*
+	 * Добавляем в справочник [CALC_PARAMS] параметр S92_ЛЬГОТ_КОЭФ,
+	 * после добавления вызываем операцию "Сгенерировать или обновить библиотеки CP_xxxxxx (служебная)";
+	 * pragma SUBSTITUTE(false) вызвана выше, поэтому если экземпляр не будет найден, то переменная-ссылка ref_calc_params примет значение null
+	 */
+	begin
+		ref_calc_params := ::[CALC_PARAMS]([CODE] = 'S92_ЛЬГОТ_КОЭФ' and [METHOD] = 'S92_PREF_CF');
+		::[CONV].[LOG].WRITEMESS('Найден экземпляр с кодом= ' || ref_calc_params.[CODE] || ' , и id= ' || ref_calc_params%id 
+			|| ' в справочнике [CALC_PARAMS]');
+		
+		if ref_calc_params is null then
+			::[CONV].[LOG].WRITEMESS('Добавляем в справочник [CALC_PARAMS] параметр S92_ЛЬГОТ_КОЭФ');
+			::[CALC_PARAMS].[NEW#AUTO](
+										P#NAME == 'S92. Определение льготного коэффициента' --Наименование
+										,P#CODE == 'S92_ЛЬГОТ_КОЭФ' --Код
+										,P#GROUP == 'PR_CRED' --Группа
+										,P#METHOD == 'S92_PREF_CF' --Имя метода для вычисления
+										,P#CLASS == 'PR_CRED' --Класс, содержащий метод
+										,P#TYPE_RESULT == 'N' --Тип результата
+										,P_NOTE == 'S92. Определение льготного коэффициента и комиссии за обслуживание' --Описание
+										);
+			::[CONV].[LOG].WRITEMESS('Добавлен экземпляр в справочник с Кодом= "S92_ЛЬГОТ_КОЭФ"');
+			
+			::[CONV].[LOG].WRITEMESS('Запущена операция "Сгенерировать или обновить библиотеки CP_xxxxxx (служебная)", дождитесь ее выполнения');		
+			::[CALC_PARAMS].[MAKE_CP_LIBS];
+		else
+			::[CONV].[LOG].WRITEMESS('Экземпляр с кодом= ' || ref_calc_params.[CODE] || ' , и id= ' || ref_calc_params%id 
+			|| ' уже существует в справочнике [CALC_PARAMS]');
+		end if;
+	end;
+	
+		
+	::[CONV].[LOG].WRITEMESS('Конец выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+	-- Закрываем LOG
+	::[CONV].[LOG].INITLOG();
+end;
+
+end; 
+end;

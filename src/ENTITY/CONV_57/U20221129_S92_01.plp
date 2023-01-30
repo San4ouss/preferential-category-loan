@@ -1,0 +1,76 @@
+class CONV_57;
+
+@name('S92. Заполнение справочника S92. Кредиты. Категория ссуды') 
+static method U20221129_S92_01 is
+
+procedure create_new_object(var_code in string, 
+	var_name in string, 
+	var_ref_kind_cr in string, 
+	var_cf in number
+	) 
+is 
+	--  Создадим переменную-ссылку на ТБП Виды Кредитов, которая изначально null
+	r_ref_kind_cr ref [KIND_CREDITS];
+begin
+
+	-- Выводим сообщение
+	::[CONV].[LOG].WRITEMESS('Начало выполнения процедуры create_new_object в операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+	if var_ref_kind_cr is not null then
+		begin
+			/*
+			 * При использовании pragma SUBSTITUTE(false), в случае когда не будет найдена ссылка на экземпляр в ТБП [KIND_CREDITS],
+			 * то переменная-ссылка примет значение null и обработка исключения не понадобится
+			 */
+			pragma SUBSTITUTE(false);
+			r_ref_kind_cr := ::[KIND_CREDITS]([NAME] = var_ref_kind_cr);
+			::[CONV].[LOG].WRITEMESS('Экземляр кредита с id: ' || r_ref_kind_cr%id || ' найден в ТБП [KIND_CREDITS]');
+			if r_ref_kind_cr is null then
+				::[CONV].[LOG].WRITEMESS('Экземляра кредита с наименованием: ' || var_ref_kind_cr || ' не существует в ТБП [KIND_CREDITS]');
+			end if;
+		end;
+	end if;
+	
+	begin
+		insert into ::[S92_CR_CATEGORY] y(
+			y.[CODE] = var_code,
+			y.[NAME] = var_name,
+			y.[REF_KIND_CR] = r_ref_kind_cr,
+			y.[CF] = var_cf
+		);
+		::[CONV].[LOG].WRITEMESS('Добавлен новый экземляр с Кодом: ' || var_code);
+		-- Отлавливаем ошибку дублирования кода, если ошибка есть, то запись в справочник не добавляется
+		exception when DUP_VAL_ON_INDEX then
+			::[CONV].[LOG].WRITEMESS('Найден существующий экземляр с Кодом: ' || var_code || '. Добавление не требуется');
+			
+	end;
+	
+	::[CONV].[LOG].WRITEMESS('Конец выполнения процедуры create_new_object в операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
+	
+end;
+
+U20221129_S92_01
+	 is
+
+execute is
+
+begin
+	-- Инициализируем LOG, открываем его
+	::[CONV].[LOG].INITLOG(
+							P_FILE_NAME == 'U20221129_S92_01.LOG', 
+							P_TIME == true
+							);
+	
+	create_new_object('1', 'Стандартный', null, 1);
+	create_new_object('2', 'VIP', 'Кредитный договор', 0.1);
+	create_new_object('3', 'Льготная 70%', null, 0.7);
+	create_new_object('4', 'Льготная 50%', null, 0.5);
+	create_new_object('5', 'Льготная 25%', 'КRRRRRR', 0.25);
+	
+	-- Закрываем LOG
+	::[CONV].[LOG].INITLOG();
+	
+end;
+
+end; 
+end;
