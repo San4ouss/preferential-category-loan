@@ -1,5 +1,0 @@
-class RUNTIME;
-
-@name('RTL package')
-library RTL is
-end;
