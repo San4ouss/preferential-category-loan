@@ -1,0 +1,2 @@
+@name('Номер договора (продукта)')
+class PRODUCT_NUM is string(22);
