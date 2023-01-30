@@ -1,0 +1,39 @@
+class S92_CR_TO_CATEG;
+
+@name('Изменить')
+@tag('CREATED')
+method EDIT_AUTO uses NEW_AUTO is
+
+EDIT_AUTO (
+	@name('Кредит')
+	P_CREDIT in [PR_CRED_REF],
+	@name('Дата начала')
+	P_START in [DATE],
+	@name('Дата окончания')
+	P_END in [DATE],
+	@name('Категория')
+	P_CATEGORY in [S92_CR_CATEG_REF]
+) is
+
+validate is
+	v_this ref [S92_CR_TO_CATEG];
+begin
+	if this is not null then
+		v_this := this;
+		&BASE$SETVARS;
+		&BASE$VALIDATE(v_this);
+		&BASE$GETVARS;
+	end if;
+end;
+
+execute is
+	v_this ref [S92_CR_TO_CATEG];
+begin
+	if this is not null then
+		v_this := this;
+		&BASE$SETVARS;
+		v_this := &BASE$EXECUTE(v_this);
+	end if;
+end;
+end;
+end;

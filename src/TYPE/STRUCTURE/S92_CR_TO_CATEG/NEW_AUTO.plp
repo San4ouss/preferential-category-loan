@@ -1,0 +1,76 @@
+class S92_CR_TO_CATEG;
+
+@name('Добавить')
+@tag('CREATED')
+constructor NEW_AUTO is
+
+NEW_AUTO (
+	@name('Кредит')
+	P_CREDIT in [PR_CRED_REF],
+	@name('Дата начала')
+	P_START in [DATE],
+	@name('Дата окончания')
+	P_END in [DATE],
+	@name('Категория')
+	P_CATEGORY in [S92_CR_CATEG_REF]
+) return ref [S92_CR_TO_CATEG] is
+
+validate is
+begin
+	-- Start initialization of parameters and variables
+	if p_message = 'DEFAULT' then
+		P_CREDIT := this.[CREDIT];
+		P_START := this.[START];
+		P_END := this.[END];
+		P_CATEGORY := this.[CATEGORY];
+	end if;
+	-- End initialization of parameters and variables
+end;
+
+execute is
+
+begin
+	
+	-- Установка значения реквизита "Кредит"
+	[CREDIT] := P_CREDIT;
+	-- Установка значения реквизита "Дата начала"
+	[START] := P_START;
+	-- Установка значения реквизита "Дата окончания"
+	[END] := P_END;
+	-- Установка значения реквизита "Категория"
+	[CATEGORY] := P_CATEGORY;
+	
+	-- Проверка обязательности полей – Кредит, Категория, дата начала
+	if [CREDIT] is null or [CATEGORY] is null or [START] is null then
+		pragma ERROR('Нельзя сохранить запись, если не заполнены поля Кредит, Категория, Дата начала');
+	-- Проверка корректности дат
+	elsif [END] < [START] then
+		pragma ERROR('Нельзя сохранить запись, у которой дата окончания меньше даты начала');
+	end if;
+	
+	-- Проверка пересечения дат
+	for i in ::[S92_CR_TO_CATEG] all 
+		where i.[CREDIT] = P_CREDIT and i.[START] > P_START 
+		loop
+			pragma ERROR('Нельзя сохранить запись, 
+							дата начала не может быть раньше даты начала уже существующей записи по данному кредиту');
+	
+		end loop;
+	
+	/*При сохранении записи, если по данному кредиту есть другая запись, 
+	 * у которой «Дата начала» < «Даты начала» сохраняемой записи и «Дата окончания» = Пусто, 
+	 * у этой записи проставляется «Дата окончания» = «Дате начала» сохраняемой записи минус 1 день
+	 */
+	update a (a.[END] = P_START - interval('1', 'day')) in ::[S92_CR_TO_CATEG] all 
+		where a.[START] < P_START and a.[END] is null and a.[CREDIT] = P_CREDIT; 
+	
+	/*При сохранении записи, если по данному кредиту есть другая запись, 
+	 * у которой «Дата начала» = «Дате начала» сохраняемой записи, данная запись удаляется
+	 */
+	
+	delete a in ::[S92_CR_TO_CATEG] all 
+		where a.[START] = P_START and a.[CREDIT] = P_CREDIT and this%id != a%id;
+			
+end;
+end;
+end;

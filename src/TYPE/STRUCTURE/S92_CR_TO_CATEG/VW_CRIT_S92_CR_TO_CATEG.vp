@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ViewPresentation classId="S92_CR_TO_CATEG" shortName="VW_CRIT_S92_CR_TO_CATEG">
+    <Properties/>
+    <Columns>
+        <Column alias="C_CREDIT" referenceId="1">
+            <Name>Кредит</Name>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_START" referenceId="0">
+            <Name>Дата начала</Name>
+            <Align>center</Align>
+            <DateFormat>Default(dd/MM/yyyy)</DateFormat>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+        </Column>
+        <Column alias="C_END" referenceId="0">
+            <Name>Дата окончания</Name>
+            <Align>center</Align>
+            <DateFormat>Default(dd/MM/yyyy)</DateFormat>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+        </Column>
+        <Column alias="C_CATEGORY" referenceId="1">
+            <Name>Категория</Name>
+            <Resizeable>true</Resizeable>
+            <Width>20</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+        <Column alias="C_CF" referenceId="1">
+            <Name>Коэффициент</Name>
+            <Align>right</Align>
+            <Resizeable>true</Resizeable>
+            <Width>10</Width>
+            <Navigation>
+                <Transition>auto</Transition>
+            </Navigation>
+        </Column>
+    </Columns>
+</ViewPresentation>
