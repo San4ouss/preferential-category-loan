@@ -1,0 +1,5 @@
+class RUNTIME;
+
+@name('STANDARD package')
+library STANDARD is
+end;

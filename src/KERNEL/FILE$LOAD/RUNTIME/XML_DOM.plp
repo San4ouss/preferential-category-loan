@@ -1,0 +1,577 @@
+class RUNTIME;
+
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('Библиотека для работы с XML')
+@tag('COPIED')
+library XML_DOM is
+/*
+Библиотека реализует перекрытие некоторых функций интерфейса библиотеки XML-парсера Xerces.
+
+Спецификация реализованных функций полностью соответствует соответствующим спецификациям из пакетов:
+dbms_xmldom		http://docs.oracle.com/cd/B14117_01/appdev.101/b10802/d_xmldom.htm
+dbms_xmlparser	http://docs.oracle.com/cd/B19306_01/appdev.102/b14258/d_xmlpar.htm
+
+Также краткая информация есть в файлах ТЯ: <версия ТЯ>\TOOLS\XML\readme.txt
+*/
+
+public pragma DEFINE(XDK); -- на схеме установлен XDK
+
+pragma IF_DEF(XDK);
+
+--------------------------------------------------------------------
+-- DOM interface types
+public type DOMDocument is xrc_xmldom.DOMDocument;
+public type DOMNode is xrc_xmldom.DOMNode;
+public type DOMNodeList is xrc_xmldom.DOMNodeList;
+public type DOMNamedNodeMap is xrc_xmldom.DOMNamedNodeMap;
+public type Parser is xrc_xmlparser.Parser;
+public type DOMElement is xrc_xmldom.DOMElement;
+public type DOMText is xrc_xmldom.DOMText;
+
+--------------------------------------------------------------------
+-- DOM Node types (as returned by getNodeType)
+public ELEMENT_NODE CONSTANT NATURAL := xrc_xmldom.ELEMENT_NODE;
+public ATTRIBUTE_NODE CONSTANT NATURAL := xrc_xmldom.ATTRIBUTE_NODE;
+public TEXT_NODE CONSTANT NATURAL := xrc_xmldom.TEXT_NODE;
+public CDATA_SECTION_NODE CONSTANT NATURAL := xrc_xmldom.CDATA_SECTION_NODE;
+public ENTITY_REFERENCE_NODE CONSTANT NATURAL := xrc_xmldom.ENTITY_REFERENCE_NODE;
+public ENTITY_NODE CONSTANT NATURAL := xrc_xmldom.ENTITY_NODE;
+public PROCESSING_INSTRUCTION_NODE CONSTANT NATURAL := xrc_xmldom.PROCESSING_INSTRUCTION_NODE;
+public COMMENT_NODE CONSTANT NATURAL := xrc_xmldom.COMMENT_NODE;
+public DOCUMENT_NODE CONSTANT NATURAL := xrc_xmldom.DOCUMENT_NODE;
+public DOCUMENT_TYPE_NODE CONSTANT NATURAL := xrc_xmldom.DOCUMENT_TYPE_NODE;
+public DOCUMENT_FRAGMENT_NODE CONSTANT NATURAL := xrc_xmldom.DOCUMENT_FRAGMENT_NODE;
+public NOTATION_NODE CONSTANT NATURAL := xrc_xmldom.NOTATION_NODE;
+
+--------------------------------------------------------------------
+
+
+pragma END_IF;
+
+
+pragma IF_DEF(XDK, false);
+
+--------------------------------------------------------------------
+-- DOM interface types
+public type DOMDocument is number;
+public type DOMNode is number;
+public type DOMNodeList is number;
+public type DOMNamedNodeMap is number;
+public type Parser is number;
+public type DOMElement is number;
+public type DOMText is number;
+
+--------------------------------------------------------------------
+-- DOM Node types (as returned by getNodeType)
+public ELEMENT_NODE CONSTANT NATURAL := null;
+public ATTRIBUTE_NODE CONSTANT NATURAL := null;
+public TEXT_NODE CONSTANT NATURAL := null;
+public CDATA_SECTION_NODE CONSTANT NATURAL := null;
+public ENTITY_REFERENCE_NODE CONSTANT NATURAL := null;
+public ENTITY_NODE CONSTANT NATURAL := null;
+public PROCESSING_INSTRUCTION_NODE CONSTANT NATURAL := null;
+public COMMENT_NODE CONSTANT NATURAL := null;
+public DOCUMENT_NODE CONSTANT NATURAL := null;
+public DOCUMENT_TYPE_NODE CONSTANT NATURAL := null;
+public DOCUMENT_FRAGMENT_NODE CONSTANT NATURAL := null;
+public NOTATION_NODE CONSTANT NATURAL := null;
+
+--------------------------------------------------------------------
+
+-- Common
+-- XML Parser interface
+-- DOM Node interface
+-- DOM NodeList interface
+--function isNull(nl DOMNodeList) return boolean;
+
+-- DOM NamedNodeMap interface:
+--function item(map DOMNamedNodeMap, i number) return DOMNode;
+--function getLength(map DOMNamedNodeMap) return number;
+--function isNull(nnm DOMNamedNodeMap) return boolean;
+
+-- DOM Element interface
+--function isNull(elem DOMElement) return boolean;
+
+-- Interface DOMText
+--function makeNode(t DOMText) return DOMNode;
+
+-- Interface DOMDocument
+--function isNull(doc DOMDocument) return boolean;
+
+--function makeNode(doc DOMDocument) return DOMNode;
+
+
+-- BASE64
+pragma END_IF;
+pragma include(::[INTERFACE].[COMPILE_LIB]);
+
+procedure check_api is
+begin
+     &check_api
+end;
+
+pragma IF_DEF(XDK);
+
+initialized boolean;
+
+-- Common
+public procedure initialize is 
+begin
+	if initialized then
+		return;
+	end if;
+	if sys_context(user_context, 'XML_DOM_INITIALIZE') = '1' then
+		initialized := true;
+		return;
+	end if;
+	if instr(upper(xrc_xmlparser.getReleaseVersion), 'XERCES-C') > 0 then
+		rtl.execute_sql('begin xrc_xmlparser.initialize; end;');
+	end if;
+	initialized := true;
+	executor.set_context('XML_DOM_INITIALIZE', '1');
+end;
+
+-- XML Parser interface
+public function parse(file_full_name varchar2) return DOMDocument is 
+begin
+	return xrc_xmlparser.parse(file_full_name);
+end;
+public procedure parse(p Parser, url varchar2) is 
+begin
+	 xrc_xmlparser.parse(p, url);
+end;
+public function newParser return Parser is 
+begin
+	return xrc_xmlparser.newParser;
+end;
+public procedure parseBuffer(p Parser, doc varchar2) is 
+begin
+	 xrc_xmlparser.parseBuffer(p, doc);
+end;
+public procedure parseCLOB(p Parser, cl CLOB) is 
+begin
+	 xrc_xmlparser.parseCLOB(p, cl);
+end;
+public function getDocument(p Parser) return DOMDocument is 
+begin
+	return xrc_xmlparser.getDocument(p);
+end;
+public procedure freeParser(p Parser) is 
+begin
+	 xrc_xmlparser.freeParser(p);
+end;
+
+-- DOM Node interface
+public function getNodeName(node DOMNode) return varchar2 is 
+begin
+	return xrc_xmldom.getNodeName(node);
+end;
+public function getNodeValue(node DOMNode) return varchar2 is 
+begin
+	if not xrc_xmldom.isNull(node) then
+		return xrc_xmldom.getNodeValue(node);
+	end if;
+	return null;
+end;
+public procedure getNodeValue(node DOMNode, cl in out nocopy CLOB) is 
+begin
+	if not xrc_xmldom.isNull(node) then
+		xrc_xmldom.getNodeValue(node, cl);
+	end if;
+end;
+public function getNodeType(node DOMNode) return number is 
+begin
+	return xrc_xmldom.getNodeType(node);
+end;
+public function getFirstChild(node DOMNode) return DOMNode is 
+begin
+	return xrc_xmldom.getFirstChild(node);
+end;
+public function getNextSibling(node DOMNode) return DOMNode is 
+begin
+	return xrc_xmldom.getNextSibling(node);
+end;
+public function getAttributes(node DOMNode) return DOMNamedNodeMap is 
+begin
+	return xrc_xmldom.getAttributes(node);
+end;
+public function getOwnerDocument(n DOMNode) return DOMDocument is 
+begin
+	return xrc_xmldom.getOwnerDocument(n);
+end;
+public function replaceChild(n DOMNode, newChild DOMNode, oldChild DOMNode) return DOMNode is 
+begin
+	return xrc_xmldom.replaceChild(n, newChild, oldChild);
+end;
+public function appendChild(n DOMNode, newChild DOMNode) return DOMNode is 
+begin
+	return xrc_xmldom.appendChild(n, newChild);
+end;
+public function hasChildNodes(node DOMNode) return boolean is 
+begin
+	return xrc_xmldom.hasChildNodes(node);
+end;
+
+public function isNull(node DOMNode) return boolean is 
+begin
+	return xrc_xmldom.isNull(node);
+end;
+
+public function makeElement(n DOMNode) return DOMElement is 
+begin
+	return xrc_xmldom.makeElement(n);
+end;
+
+-- DOM NodeList interface
+public function item(nl DOMNodeList, i number) return DOMNode is 
+begin
+	return xrc_xmldom.item(nl, i);
+end;
+public function getLength(nl DOMNodeList) return number is 
+begin
+	return xrc_xmldom.getLength(nl);
+end;
+public function isNull(nl DOMNodeList) return boolean is 
+begin
+	return xrc_xmldom.isNull(nl);
+end;
+
+-- DOM NamedNodeMap interface:
+public function item(map DOMNamedNodeMap, i number) return DOMNode is 
+begin
+	return xrc_xmldom.item(map, i);
+end;
+public function getLength(map DOMNamedNodeMap) return number is 
+begin
+	return xrc_xmldom.getLength(map);
+end;
+public function isNull(nnm DOMNamedNodeMap) return boolean is 
+begin
+	return xrc_xmldom.isNull(nnm);
+end;
+
+-- DOM Element interface
+public function getAttribute(elem DOMElement, name varchar2) return varchar2 is 
+begin
+	return xrc_xmldom.getAttribute(elem, name);
+end;
+public procedure setAttribute(elem DOMElement, name varchar2, value varchar2) is 
+begin
+	xrc_xmldom.setAttribute(elem, name, nvl(value, ''));
+end;
+public function getChildrenByTagName(e DOMElement, tagName varchar2) return DOMNodeList is 
+begin
+	return xrc_xmldom.getChildrenByTagName(e, tagName);
+end;
+
+public function isNull(elem DOMElement) return boolean is 
+begin
+	return xrc_xmldom.isNull(elem);
+end;
+
+public function makeNode(elem DOMElement) return DOMNode is 
+begin
+	return xrc_xmldom.makeNode(elem);
+end;
+
+-- Interface DOMText
+public function makeNode(t DOMText) return DOMNode is 
+begin
+	return xrc_xmldom.makeNode(t);
+end;
+
+-- Interface DOMDocument
+public function getDocumentElement(doc DOMDocument) return DOMElement is 
+begin
+	return xrc_xmldom.getDocumentElement(doc);
+end;
+public function createElement(doc DOMDocument, tagName varchar2) return DOMElement is 
+begin
+	return xrc_xmldom.createElement(doc, tagName) ;
+end;
+public function createTextNode(doc DOMDocument, data varchar2) return DOMText is 
+begin
+	return xrc_xmldom.createTextNode(doc, data );
+end;
+public function createTextNode(doc DOMDocument, data CLOB) return DOMText is 
+begin
+	return xrc_xmldom.createTextNode(doc, data);
+end;
+
+public function isNull(doc DOMDocument) return boolean is 
+begin
+	return xrc_xmldom.isNull(doc);
+end;
+
+public function makeNode(doc DOMDocument) return DOMNode is 
+begin
+	return xrc_xmldom.makeNode(doc);
+end;
+
+public function newDOMDocument(cl CLOB) return DOMDocument is 
+	p Parser;
+	d DOMDocument;
+begin
+	p := newParser;
+	parseCLOB(p, cl);
+	d := getDocument(p);
+	freeParser(p);
+	return d;
+end;
+public procedure writeToFile(n DOMDocument, fileName varchar2) is 
+begin
+	xrc_xmldom.writeToFile(n, fileName);
+end;
+public procedure writeToBuffer(n DOMDocument, buffer in out nocopy varchar2) is 
+begin
+	xrc_xmldom.writeToBuffer(n, buffer);
+end;
+public procedure writeToCLOB(n DOMDocument, cl in out nocopy CLOB) is 
+begin
+	xrc_xmldom.writeToCLOB(n, cl);
+end;
+public procedure freeDocument(doc DOMDocument) is 
+begin
+	xrc_xmldom.freeDocument(doc);
+end;
+
+public function importNode(doc DOMDocument, importedNode DOMNode, deep boolean) return DOMNode is 
+begin
+	return xrc_xmldom.importNode(doc, importedNode, deep);
+end;
+
+
+-- BASE64
+public procedure decodeBase64(cl in out nocopy CLOB, overwrite BOOLEAN := true) is 
+begin
+	xrc_xmlparser.decodeBase64(cl, overwrite);
+end;
+public procedure encodeBase64(cl in out nocopy CLOB, overwrite BOOLEAN := true) is 
+begin
+	xrc_xmlparser.encodeBase64(cl, overwrite);
+end;
+
+pragma END_IF;
+
+
+
+pragma IF_DEF(XDK, false);
+
+-- Common
+public procedure initialize is 
+begin
+	return;
+end;
+
+-- XML Parser interface
+public function parse(file_full_name varchar2) return DOMDocument is 
+begin
+	return null;
+end;
+public procedure parse(p Parser, url varchar2) is 
+begin
+	return;
+end;
+public function newParser return Parser is 
+begin
+	return null;
+end;
+public procedure parseBuffer(p Parser, doc varchar2) is 
+begin
+	return;
+end;
+public procedure parseCLOB(p Parser, cl CLOB) is 
+begin
+	return;
+end;
+public function getDocument(p Parser) return DOMDocument is 
+begin
+	return null;
+end;
+public procedure freeParser(p Parser) is 
+begin
+	return;
+end;
+
+-- DOM Node interface
+public function getNodeName(node DOMNode) return varchar2 is 
+begin
+	return null;
+end;
+public function getNodeValue(node DOMNode) return varchar2 is 
+begin
+	return null;
+end;
+public procedure getNodeValue(node DOMNode, cl in out nocopy CLOB) is 
+begin
+	return;
+end;
+public function getNodeType(node DOMNode) return number is 
+begin
+	return null;
+end;
+public function getFirstChild(node DOMNode) return DOMNode is 
+begin
+	return null;
+end;
+public function getNextSibling(node DOMNode) return DOMNode is 
+begin
+	return null;
+end;
+public function getAttributes(node DOMNode) return DOMNamedNodeMap is 
+begin
+	return null;
+end;
+public function getOwnerDocument(n DOMNode) return DOMDocument is 
+begin
+	return null;
+end;
+public function replaceChild(n DOMNode, newChild DOMNode, oldChild DOMNode) return DOMNode is 
+begin
+	return null;
+end;
+public function appendChild(n DOMNode, newChild DOMNode) return DOMNode is 
+begin
+	return null;
+end;
+public function hasChildNodes(node DOMNode) return boolean is 
+begin
+	return null;
+end;
+
+public function isNull(node DOMNode) return boolean is 
+begin
+	return null;
+end;
+
+public function makeElement(n DOMNode) return DOMElement is 
+begin
+	return null;
+end;
+
+-- DOM NodeList interface
+public function item(nl DOMNodeList, i number) return DOMNode is 
+begin
+	return null;
+end;
+public function getLength(nl DOMNodeList) return number is 
+begin
+	return null;
+end;
+/*function isNull(nl DOMNodeList) return boolean is
+begin
+	return null;
+end;*/
+
+-- DOM NamedNodeMap interface:
+/*function item(map DOMNamedNodeMap, i number) return DOMNode is
+begin
+	return null;
+end;*/
+/*function getLength(map DOMNamedNodeMap) return number is
+begin
+	return null;
+end;*/
+/*function isNull(nnm DOMNamedNodeMap) return boolean is
+begin
+	return null;
+end;*/
+
+-- DOM Element interface
+public function getAttribute(elem DOMElement, name varchar2) return varchar2 is 
+begin
+	return null;
+end;
+public procedure setAttribute(elem DOMElement, name varchar2, value varchar2) is 
+begin
+	return;
+end;
+public function getChildrenByTagName(e DOMElement, tagName varchar2) return DOMNodeList is 
+begin
+	return null;
+end;
+
+/*function isNull(elem DOMElement) return boolean is
+begin
+	return null;
+end;*/
+
+public function makeNode(elem DOMElement) return DOMNode is 
+begin
+	return null;
+end;
+
+-- Interface DOMText
+/*function makeNode(t DOMText) return DOMNode is
+begin
+	return null;
+end;*/
+
+-- Interface DOMDocument
+public function getDocumentElement(doc DOMDocument) return DOMElement is 
+begin
+	return null;
+end;
+public function createElement(doc DOMDocument, tagName varchar2) return DOMElement is 
+begin
+	return null;
+end;
+public function createTextNode(doc DOMDocument, data varchar2) return DOMText is 
+begin
+	return null;
+end;
+public function createTextNode(doc DOMDocument, data CLOB) return DOMText is 
+begin
+	return null;
+end;
+
+/*function isNull(doc DOMDocument) return boolean is
+begin
+	return null;
+end;*/
+
+/*function makeNode(doc DOMDocument) return DOMNode is
+begin
+	return null;
+end;*/
+
+public function newDOMDocument(cl CLOB) return DOMDocument is 
+begin
+	return null;
+end;
+public procedure writeToFile(n DOMDocument, fileName varchar2) is 
+begin
+	return;
+end;
+public procedure writeToBuffer(n DOMDocument, buffer in out nocopy varchar2) is 
+begin
+	return;
+end;
+public procedure writeToCLOB(n DOMDocument, cl in out nocopy CLOB) is 
+begin
+	return;
+end;
+public procedure freeDocument(doc DOMDocument) is 
+begin
+	return;
+end;
+
+public function importNode(doc DOMDocument, importedNode DOMNode, deep boolean) return DOMNode is 
+begin
+	return null;
+end;
+
+
+-- BASE64
+public procedure decodeBase64(cl in out nocopy CLOB, overwrite BOOLEAN := true) is 
+begin
+	return;
+end;
+public procedure encodeBase64(cl in out nocopy CLOB, overwrite BOOLEAN := true) is 
+begin
+	return;
+end;
+
+pragma END_IF;
+end;

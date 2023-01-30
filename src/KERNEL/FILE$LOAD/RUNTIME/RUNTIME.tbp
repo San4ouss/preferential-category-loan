@@ -1,0 +1,4 @@
+@entity('KERNEL')
+@name('Standard Run-Time Library procedures')
+abstract class RUNTIME {
+}
