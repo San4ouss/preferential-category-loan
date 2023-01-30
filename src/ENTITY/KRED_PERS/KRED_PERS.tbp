@@ -1,0 +1,4 @@
+@entity('PRODUCT')
+@name('Кредиты частным лицам')
+class KRED_PERS extends PR_CRED {
+}
