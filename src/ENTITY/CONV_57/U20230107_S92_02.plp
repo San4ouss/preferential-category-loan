@@ -43,17 +43,22 @@ begin
 		begin
 			-- Проверяем наличие записи в массиве [AUXAPP_METHOD] c классом 'MAIN_DOCUM' и именем 'S92_MARK_CATEG
 			ref_auxapp_method := ref_appaux_callpoint.[METHODS](CLS = 'MAIN_DOCUM' and SNAME = 'S92_MARK_CATEG');
-			::[CONV].[LOG].WRITEMESS('Найден экземпляр с классом= ' || ref_auxapp_method.[CLS] || ' , и именем= ' || ref_auxapp_method.[SNAME] 
-					|| ' в массиве [AUXAPP_METHOD]');
-			if ref_auxapp_method is null then
 			
+			if ref_auxapp_method is null then
+				
 				-- Находим последний существующий приоритет для экземпляров в массиве [METHODS]
 				select x(max(x.[PRIORITY])) in ::[AUXAPP_METHOD] all where x%collection = ref_appaux_callpoint.[METHODS]%collection 
 				into last_priority;
 				
 				-- Делаем наш приоритет на 1 старше последнего найденного, учитывая что он не может принять значение больше 99
-				if last_priority != 99 then
+				if last_priority is null then
+					last_priority := 1;
+				elsif last_priority != 99 then
 					last_priority := last_priority + 1;
+				else
+					::[CONV].[LOG].WRITEMESS('Все значения приоритета заполнены, проставим последнее значение last_priority= ' 
+						|| to_char(last_priority)
+					);
 				end if;
 				
 				::[CONV].[LOG].WRITEMESS('Приоритет примет значение last_priority= ' || to_char(last_priority));
@@ -102,7 +107,6 @@ begin
 										,P_NOTE == 'S92. Определение льготного коэффициента и комиссии за обслуживание' --Описание
 										);
 			::[CONV].[LOG].WRITEMESS('Добавлен экземпляр в справочник с Кодом= "S92_ЛЬГОТ_КОЭФ"');
-			
 			::[CONV].[LOG].WRITEMESS('Запущена операция "Сгенерировать или обновить библиотеки CP_xxxxxx (служебная)", дождитесь ее выполнения');		
 			::[CALC_PARAMS].[MAKE_CP_LIBS];
 		else
@@ -110,13 +114,11 @@ begin
 			|| ' уже существует в справочнике [CALC_PARAMS]');
 		end if;
 	end;
-	
-		
+			
 	::[CONV].[LOG].WRITEMESS('Конец выполнения операции [' ||  &METHOD$SNAME || '] ' || &METHOD$NAME);
 	
 	-- Закрываем LOG
 	::[CONV].[LOG].INITLOG();
 end;
-
 end; 
 end;
