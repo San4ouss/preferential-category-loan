@@ -1,0 +1,2 @@
+@name('Ссылка на "Интегратор. Бизнес-процессы"')
+class CIT_BO_REF is ref [CIT_BO];
