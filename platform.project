@@ -1,0 +1,10 @@
+#Wed Nov 16 04:10:13 NOVT 2022
+version=2
+src-gen.path=src-gen
+src.org.hierarchy=false
+src.path=src
+tbp.annotation.version2=true
+vp.generate.base_class=false
+vp.generate.qual=false
+vw.validate.if_def_count=ERROR
+vw.validate.if_def_type=ERROR
