@@ -1,0 +1,24 @@
+class CALC_PARAMS;
+
+@import_plsql(true)
+@this(create_on_start:=true)
+@name('Сгенерировать или обновить библиотеки CP_xxxxxx (служебная)')
+static method MAKE_CP_LIBS is
+
+MAKE_CP_LIBS is
+
+execute is
+-- Операция генерит для каждого метода вычисления вычисляемого параметра
+-- свою библиотеку CP_xxxxx для перевызова этого метода.
+-- Эти библиотеки используются в операции EXEC_CALC_PAR
+-- для исключения использования динамического pl/sql.
+-- !!! Т.к. операция выполняет компиляцию, то не должно быть других активных сессий
+
+begin
+	[ALIB].make_libs; -- производит вывод в канал!
+
+	debug_pipe('Перекомпиляция ::[CALC_PARAMS].[EXEC_CALC_PAR]',0);
+	[ALIB].compile_EXEC_CALC_PAR;
+end;
+end;
+end;
