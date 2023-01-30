@@ -1,0 +1,5 @@
+class RUNTIME;
+
+@name('STDIO package')
+library STDIO is
+end;
