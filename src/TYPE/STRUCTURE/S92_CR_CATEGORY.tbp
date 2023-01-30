@@ -1,0 +1,9 @@
+@dictionary
+@entity('TYPE')
+@name('S92. Кредиты. Категория ссуды')
+class S92_CR_CATEGORY {
+	@name('Код')          CODE        [STRING];
+	@name('Наименование') NAME        [STRING];
+	@name('вид кредита')  REF_KIND_CR [KIND_CREDITS_REF];
+	@name('Коэффициент')  CF          [NUMBER];
+}
