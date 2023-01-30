@@ -1,0 +1,2 @@
+@name('Ссылка на "Продукты"')
+class PRODUCT_REF is ref [PRODUCT];
