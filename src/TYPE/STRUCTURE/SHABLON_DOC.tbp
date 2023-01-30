@@ -1,0 +1,27 @@
+@dictionary
+@entity('TYPE')
+@name('Справочник шаблонов документов')
+class SHABLON_DOC {
+	@name('Наименование')                                                           NAME             [STRING_100];
+	@name('Описание')                                                               DESCRIB          [MEMO];
+	@name('Код для группировки')                                                    GRP_CODE         [STRING_20];
+	@name('Код шаблона')                                                            CODE             [STRING_40];
+	@name('Дополнительные свойства')                                                PROPERTIES       [PROPERTIES_ARR];
+	@name('Настройка шаблона')                                                      STRS             [SHABLON_DOC__ARR];
+	@name('Cигнатура файла')                                                        FILE_SIGNATURE   [STRING_250];
+	@name('Считывать рассчитанные данные')                                          IS_READ          [BOOLEAN];
+	@name('Печатать по настройке')                                                  IS_USE_DESCRIB   [BOOLEAN];
+	@name('Пароль')                                                                 PASSWORD         [STRING_30];
+	@name('Установить защиту')                                                      PROTECT          [BOOLEAN];
+	@name('Шаблон договора')                                                        PATTERN_DOG      [MEMO_BIG];
+	@name('Количество копий')                                                       COUNT_COPIES     [SHORT2];
+	@name('Имя файла')                                                              FILE_NAME        [STRING_100];
+	@name('Открыть документ в редакторе')                                           IS_OPEN          [BOOLEAN];
+	@name('Отправить документ на принтер')                                          IS_PRINT         [BOOLEAN];
+	@name('Сохранить документ')                                                     IS_SAVE          [BOOLEAN];
+	@name('Имя файла для сохранения')                                               SAVE_NAME        [STRING_250];
+	@name('Класс')                                                                  TBP              [METACLASS_REF];
+	@name('Шаблон дистрибутивный')                                                  RPT_TMPL         [BLOB];
+	@name('Шаблоны банка')                                                          BANK_TMPL        [BANK_SHABLON_ARR];
+	@name('Тип вычисляемых полей в шаблоне Word (0 - Docvariables, 1 - SDT-блоки)') CALC_FIELDS_TYPE [SHORT1];
+}
