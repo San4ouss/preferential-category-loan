@@ -1,0 +1,9 @@
+@dictionary
+@entity('TYPE')
+@name('Системные параметры')
+class SYSTEM_PARAMS {
+	@name('Код')                    CODE          [STRING_16];
+	@name('Значение')               VALUE         [STRING_100];
+	@name('Комментарий')            COMMENT       [MEMO];
+	@name('Значение подразделений') DEPART_VALUES [DEPART_VALUE_ARR];
+}
