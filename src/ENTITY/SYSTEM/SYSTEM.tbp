@@ -1,0 +1,11 @@
+@cache(scope:='ALL', size:=2, system_columns:=true)
+@entity('SYSTEM')
+@name('Система')
+@tag('CORE')
+class SYSTEM {
+	@name('Страна')                                                                COUNTRY        [COUNTRY_REF];
+	@name('Собственная организация (НЕ ИСПОЛЬЗОВАТЬ! Оставлен для совместимости)') SYS_MY_COMPANY [CL_CORP_REF];
+	@name('Основная валюта')                                                       SYS_MAIN_VAL   [FT_MONEY_REF] static;
+	@name('Основной план счетов')                                                  SYS_MAIN_PLAN  [TYPE_PL$];
+	@name('Количество дней в периоде заключительных оборотов')                     ZO_DAYS        [SHORT3];
+}
