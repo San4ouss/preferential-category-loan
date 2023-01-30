@@ -1,0 +1,4 @@
+@entity('TYPE')
+@name('Office Open XML')
+abstract class OOXML {
+}
