@@ -1,0 +1,2 @@
+@name('Ссылка на "Виды кредитов"')
+class KIND_CREDITS_REF is ref [KIND_CREDITS];
