@@ -1,0 +1,479 @@
+class SHABLON_DOC;
+
+@import_plsql(true)
+@name('Библиотека работы с OOXML')
+library LIB_OOXML is
+public pragma include ([INTERFACE].[COMPILE_LIB]);
+public procedure check_api is
+begin
+     &check_api
+end;
+
+
+pragma macro(xl,	'[OOXML]::[API_XL]');
+pragma macro(wd,	'[OOXML]::[API_DOC_SAX]');
+pragma macro(orsa,	'[OOXML]::[API_ORSA]');
+pragma macro(sdt,	'::[OOXML].[API_DOC_AUTOTAG]');
+pragma macro(cp,	'::[DOCUMENT].[COPYFILES]');
+pragma include([DEBUG_TRIGGER]::[MACRO_LIB]);
+
+
+public procedure load_blob
+/* Загрузка шаблона документа в blob */
+	( p_shablon_code			varchar2(40)
+	/* Код шаблона документа */
+	, p_shablon_blob	in out blob
+	/* Шаблон документа в формате blob, возвращаемый в вызываемую операцию */
+	, p_shablon_tbp				ref [METACLASS]		default null
+	/* Класс шаблона - необязательный параметр */
+	, p_shablon_grp				varchar2(20)		default null
+	/* Код для группировки - необязательный параметр */
+	, p_shablon_ref				ref [SHABLON_DOC]	default null
+	/* Ссылка на шаблон - необязательный параметр */
+	, p_filial                  ref [BRANCH]        default null
+	/* Ссылка на филиал для поиска нужного шаблона */
+	) is 
+begin
+	p_shablon_blob := null;
+
+	for (
+		select a (
+				nvl(a.[BANK_TMPL].[TMPL], a.[RPT_TMPL]) : C_XL_TMPL
+			)
+		in		::[SHABLON_DOC]
+		where	(p_shablon_code is null or a.[CODE] = p_shablon_code)
+			and	(p_shablon_tbp is null or a.[TBP] = p_shablon_tbp)
+			and	(p_shablon_grp is null or a.[GRP_CODE] = p_shablon_grp)
+			and	(p_shablon_ref is null or a = p_shablon_ref)
+			and (a.[BANK_TMPL].[FILIAL](true) = p_filial or a.[BANK_TMPL].[FILIAL] is null)
+		order by a.[BANK_TMPL].[FILIAL]
+	) loop
+		p_shablon_blob := a.C_XL_TMPL;
+		exit;
+	end loop;
+end;
+
+public procedure read_from_file
+/* Чтение файла в BLOB */
+	( p_blob	in out	blob
+	/* Содержимое файла (BLOB) */
+	, p_dir				varchar2
+	/* Путь к файлу на сервере */
+	, p_fname			varchar2
+	/* Имя файла на сервере */
+	, p_delete			boolean		default false
+	/* Удаление файла на сервере после чтения */
+	) is 
+	i_file		integer;
+	v_raw		raw(32767);
+	v_filename	varchar2(1000);	-- полное имя файла с путём
+	n_size		number;			-- запланированный объем порции данных
+begin
+	-- создаем временный blob
+	dbms_lob.createtemporary(p_blob, true, dbms_lob.call);
+
+	n_size := 8192;			--	запланированная порция данных
+
+	i_file := stdio.open(p_dir, p_fname, 'r');			
+	
+	while stdio.fread(i_file, n_size, v_raw) > 0 loop
+		dbms_lob.writeappend(p_blob, utl_raw.length(v_raw), v_raw);
+	end loop;
+
+	stdio.close(i_file);
+	
+	if p_delete then
+		v_filename := p_dir;
+		if substr(v_filename, length(v_filename), 1) not in ('/', '\') then
+			v_filename := v_filename||'/';
+		end if;
+		v_filename := v_filename||p_fname;
+		stdio.delete_file(v_filename);
+	end if;
+end;
+
+public procedure write_to_file
+/* Запись BLOBa в файл */
+	( p_blob	in	out	blob
+	/* Содержимое файла (BLOB) */
+	, p_dir				varchar2(128)
+	/* Путь к файлу на сервере */
+	, p_fname			varchar2(128)
+	/* Имя файла на сервере */
+	) is 
+	i_file_out 		integer;
+	i_max_len 		integer;
+	i_byte_to_read	integer;
+	i_offset 		integer;
+	i_wb			integer;
+	v_str 			raw(32767);
+begin
+	i_file_out := stdio.open(p_dir, p_fname, 'w');
+	i_max_len := 32765;
+	i_byte_to_read := dbms_lob.getlength(p_blob);
+	i_offset := 1;
+	while i_byte_to_read > 0 loop
+		dbms_lob.read(p_blob, i_max_len, i_offset, v_str);
+		i_offset := i_offset + i_max_len;
+		i_byte_to_read := i_byte_to_read - i_max_len;
+		i_wb := stdio.fwrite(i_file_out, v_str, utl_raw.length(v_str));
+	end loop;
+	stdio.close(i_file_out);
+end;
+
+public function xl_init
+/* Инициализация шаблона для вывода в EXCEL */
+	( p_shablon_code	varchar2			default null
+	/* Код шаблона. Если код и ссылка не указаны, то инициализация пройдет без шаблона */
+	, p_shablon_grp		varchar2			default null
+	/* Код для группировки */
+	, p_shablon_ref		ref	[SHABLON_DOC]	default null
+	/* Ссылка на шаблон. Если код и ссылка не указаны, то инициализация пройдет без шаблона */
+	, p_stop_on_error	boolean				default true
+	/* Останавливать выполнение с ошибкой, если шаблон не удается сохранить */
+	, p_filial          ref [BRANCH]        default null
+	/* Ссылка на филиал для поиска нужного шаблона */
+	)
+/* Файл шаблона */
+return blob is 
+	xlsx blob := empty_blob();
+begin
+	-- Если шаблон не указан, то инициализируем с пуcтым шаблоном
+	if p_shablon_code is null and p_shablon_ref is null then
+		&xl.init_xls;
+		return xlsx;
+	end if;
+	
+	&debug(' xl_init> Инициализация шаблона печати "' || p_shablon_code || '"', 0)
+	
+	-- Шаблон указан, значит считываем его из справочника шаблонов документов
+	load_blob(p_shablon_code, xlsx, p_shablon_grp == p_shablon_grp, p_shablon_ref == p_shablon_ref,p_filial == p_filial);
+	
+	-- Пробуем открыть шаблон как OOXML-файл, если не получается
+	if xlsx is null or not &xl.open_file(xlsx) then
+		-- то в зависимости от флага p_stop_on_error либо выдаем критическую ошибку
+		if p_stop_on_error then
+			pragma error('Не удалось открыть шаблон печати "' || nvl(p_shablon_code, p_shablon_ref.[CODE]) || '" в справочнике шаблонов документов. '
+						|| NL$ || 'Обратитесь к администратору системы.');
+		-- либо инициализипуем с пустым шаблоном и выдаем некритическую ошибку (в монитор коммуникационного канала)
+		else
+			&debug(' xl_init>  ! Не удалось открыть шаблон печати "' || nvl(p_shablon_code, p_shablon_ref.[CODE]) || '" в справочнике шаблонов документов.', 0)
+			&xl.init_xls;
+		end if;
+	end if;
+	
+	-- открываем первый лист
+	&xl.open_sheet(1);
+	
+	return xlsx;
+end;
+
+public function xl_finish
+/* Вывод отчета в EXCEL (сохранение файла на локальной машине) */
+	( p_show			boolean		default true
+	/* Открывать (отображать) сформированный файл на машине пользователя */
+	, p_description     varchar2    default null
+	/* описание отчета */
+	)
+/* Файл отчета */
+return blob is 
+	xlsx 		blob := empty_blob();	-- результат печати (BLOB с содержимым xlsx-файла)
+	vRepId      varchar2;
+begin
+	&xl.finish(xlsx);
+	-- Печать сформированного файла
+	if p_show then
+		vRepId := ::[OOXML].[API_ORSA].PutReport2Run
+											( p_blob 		==  xlsx		-- Результат отчёта
+											, p_extention	== 'xlsx'	-- Расширение файла результата
+											, p_description == p_description
+											);
+	end if;
+	return xlsx;
+end;
+
+public function wd_init
+/* Инициализация шаблона для вывода в WORD */
+	( p_shablon_code	varchar2			default null
+	/* Код шаблона. Если код и ссылка не указаны, то инициализация пройдет без шаблона */
+	, p_shablon_grp		varchar2			default null
+	/* Код для группировки */
+	, p_shablon_ref		ref	[SHABLON_DOC]	default null
+	/* Ссылка на шаблон. Если код и ссылка не указаны, то инициализация пройдет без шаблона */
+	, p_stop_on_error	boolean				default true
+	/* Останавливать выполнение с ошибкой, если шаблон не удается сохранить */
+	, p_filial          ref [BRANCH]        default null
+	/* Ссылка на филиал для поиска нужного шаблона */
+	, p_fields_type		integer				default 0
+	/* Тип вычисляемых полей в шаблоне Word (0 - Docvariables, 1 - SDT-блоки) */
+	)
+/* Файл шаблона */
+return blob is 
+	docx blob := empty_blob();
+begin
+	-- Если шаблон не указан, то инициализируем с пуcтым шаблоном
+	if p_shablon_code is null and p_shablon_ref is null then
+		return docx;
+	end if;
+	
+	p_fields_type := nvl(p_fields_type, 0);
+	
+	&debug(' wd_init> Инициализация шаблона печати "' || p_shablon_code || '"', 0)
+	
+	-- Шаблон указан, значит считываем его из справочника шаблонов документов
+	load_blob(p_shablon_code, docx, p_shablon_grp == p_shablon_grp, p_shablon_ref == p_shablon_ref,p_filial == p_filial);
+	
+	-- Пробуем открыть шаблон как OOXML-файл, если не получается
+	if docx is null or ((p_fields_type = 0 and not &wd.open_file(docx)) or (p_fields_type = 1 and not &sdt.open_file(docx))) then
+		-- то в зависимости от флага p_stop_on_error либо выдаем критическую ошибку
+		if p_stop_on_error then
+			pragma error('Не удалось открыть шаблон печати "' || nvl(p_shablon_code, p_shablon_ref.[CODE]) || '" в справочнике шаблонов документов. '
+						|| NL$ || 'Обратитесь к администратору системы.');
+		-- либо инициализипуем с пустым шаблоном и выдаем некритическую ошибку (в монитор коммуникационного канала)
+		else
+			&debug(' wd_init>  ! Не удалось открыть шаблон печати "' || nvl(p_shablon_code, p_shablon_ref.[CODE]) || '" в справочнике шаблонов документов.', 0)
+		end if;
+	end if;
+	
+	return docx;
+end;
+
+public function wd_finish
+/* Вывод отчета в WORD (сохранение файла на локальной машине) */
+	( p_show			boolean		default true
+	/* Открывать (отображать) сформированный файл на машине пользователя */
+	, p_description     varchar2    default null
+	/* описание отчета */
+	, p_fields_type		integer		default 0
+	/* Тип вычисляемых полей в шаблоне Word (0 - Docvariables, 1 - SDT-блоки) */
+	)
+/* Файл отчета */
+return blob is 
+	vRepId      varchar2;
+	docx 		blob := empty_blob();	-- результат печати (BLOB с содержимым docx-файла)
+begin
+	if nvl(p_fields_type, 0) = 0 then
+		&wd.finish(docx);
+	else
+		&sdt.finish(docx);
+	end if;
+	if p_show then
+		vRepId := ::[OOXML].[API_ORSA].PutReport2Run
+											( p_blob 		==  docx		-- Результат отчёта
+											, p_extention	== 'docx'	-- Расширение файла результата
+											, p_description == p_description
+											);
+	end if;
+	return docx;
+end;
+
+public function read_fields
+/* Чтение настроек из файла шаблона в строку */
+/* Строка с настройками */
+return varchar2(32000) is 
+	fList		rtl.string_table;
+	iC_Max		integer;
+	iL_Max		integer;
+	iList		integer;
+	iSheet		integer;
+	iSt			integer;
+	vCell		varchar2(1000);
+	vSettings	varchar2(32000);
+	vTp			varchar2(100);
+begin
+	vSettings := null;
+	fList := &xl.getSheetsList;
+	iList := fList.first;
+	while iList is not null loop
+		iSheet := &xl.getSheetNum(fList(iList));
+		&xl.Open_Sheet(iSheet);
+		
+		&debug(' read_fields> iSheet = ' || iSheet, 0)
+		
+		iC_Max := &xl.getSheetColCount(iSheet);
+		iL_Max := &xl.getSheetRowCount(iSheet);
+		&debug(' read_fields> iC_Max = ' || iC_Max, 0)
+		&debug(' read_fields> iL_Max = ' || iL_Max, 0)
+		for L in 1 .. nvl(iL_Max, 0) loop
+			for C in 1 .. nvl(iC_Max, 0) loop
+				vCell := trim(&xl.getSheetRowColVal(L, C, iSheet, vTp, iSt));
+				&debug(' read_fields> 	prepare C = '||C||' L = '||L||' vCell = ' || vCell, 0)
+				if vCell is not null and substr(vCell, 1, 1) = '<' and substr(vCell, length(vCell), 1) = '>' Then
+					&xl.cell_v_data(L, C, null);
+					&debug(' read_fields> 	C = '||C||' L = '||L||' vCell = ' || vCell, 0)
+					if substr(vCell, 1, 2) = '</' Then
+						vSettings := vSettings || vCell;
+					else
+						if vCell like '%/>' Then
+							vSettings := vSettings || substr(vCell, 1, length(vCell) - 2) || ' C="' || (C) || '" L="' || (L) || '" S="' || iSheet || '"/>';
+						else
+							vSettings := vSettings || substr(vCell, 1, length(vCell) - 1) || ' C="' || (C) || '" L="' || (L) || '" S="' || iSheet || '">';
+						end if;
+					end if;
+				end if;
+			end loop;
+		end loop;
+		iList := fList.next(iList);
+	end loop;
+	return vSettings;
+end;
+
+public function to_alpha
+/* Преобразование номера колонки в буквенный код
+Примеры преобразования колонок:
+1 -> A
+26 -> Z
+27 -> AA
+40 -> AN
+*/
+	(p_col number
+	/* Номер колонки */
+	)
+/* Строка с буквенным кодом */
+return varchar2 is 
+	nNum	number			default p_col;							-- число для хранения остатка номера
+	nScale	number;													-- Количество символов для нумерации колонок
+	vAlpha	varchar2(50)	default 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';	-- Символы для нумерации колонок
+	vStr	varchar2(100);											-- Строка для хранения буквенного кода
+begin
+	nScale := length(vAlpha);
+	loop
+		vStr := substr(vAlpha, mod(nNum - 1, nScale) + 1, 1) || vStr;
+		nNum := trunc((nNum - 1) / nScale);
+		exit when nNum = 0;
+	end loop;
+	return vStr;
+end;
+
+public function conv_from_r1c1
+/* Преобразование формулы из формата R1C1 в формат A1
+Примеры преобразования формул для ячейки D29:
+'=SUM(R[-10]C[1]:R[-1]C[1])' -> '=SUM(E19:E28)'
+'=SUM(R[-10]C:R[-1]C)' -> '=SUM(D19:D28)'
+'=SUM(RC[1]:RC[10])' -> '=SUM(E29:N29)'
+*/
+	( p_formula	varchar2(32000)
+	/* Формула в формате R1C1 */
+	, p_row		integer
+	/* Номер текущей строки */
+	, p_col		integer
+	/* Номер текущей колонки */
+	)
+/* Формула в формате A1 */
+return varchar2(32000) is 
+	nR	number;
+	nC	number;
+	vRC	varchar2(32000);
+	vR	varchar2(100);
+	vC	varchar2(100);
+begin
+	if p_formula is null then
+		return null;
+	end if;
+	while p_formula like '%R[%]C[%]%' loop
+		vRC := substr(p_formula, instr(p_formula, 'R['));
+		vRC := substr(vRC, 1, instr(vRC, ']', 1, 2));
+		vR := substr(vRC, instr(vRC, '[') + 1);
+		vR := substr(vR, 1, instr(vR, ']') - 1);
+		vC := substr(vRC, instr(vRC, '[', 1, 2) + 1);
+		vC := substr(vC, 1, instr(vC, ']') - 1);
+		nR := to_number(vR);
+		nC := to_number(vC);
+		p_formula := replace(p_formula, vRC, to_alpha(p_col + nC)||to_char(p_row + nR));
+	end loop;
+	while p_formula like '%RC[%]%' loop
+		vRC := substr(p_formula, instr(p_formula, 'RC['));
+		vRC := substr(vRC, 1, instr(vRC, ']'));
+		vC := substr(vRC, instr(vRC, '[') + 1);
+		vC := substr(vC, 1, instr(vC, ']') - 1);
+		nR := to_number('0');
+		nC := to_number(vC);
+		p_formula := replace(p_formula, vRC, to_alpha(p_col + nC)||to_char(p_row + nR));
+	end loop;
+	while p_formula like '%R[%]C%' loop
+		vRC := substr(p_formula, instr(p_formula, 'R['));
+		vRC := substr(vRC, 1, instr(vRC, ']') + 1);
+		vR := substr(vRC, instr(vRC, '[') + 1);
+		vR := substr(vR, 1, instr(vR, ']') - 1);
+		nR := to_number(vR);
+		nC := to_number('0');
+		p_formula := replace(p_formula, vRC, to_alpha(p_col + nC)||to_char(p_row + nR));
+	end loop;
+	return p_formula;
+end;
+
+public function GetFileType
+/* Получение типа шаблона */
+	( P_ZIP	in	out	blob
+	/* Файл архива (тип blob) */
+	)
+/* Возвращает тип документа шаблона */
+return varchar2(8) is 
+	i	integer;
+	v	varchar2;
+	
+	vTB			const	varchar2(1)		:= TB$;
+	vFileName	const	varchar2(32)	:= '[Content_Types].xml';
+	vNS			const	varchar2(128)	:= 'xmlns="http://schemas.openxmlformats.org/package/2006/content-types"';
+	
+	vContentType	varchar2;
+	vPartName		varchar2;
+	vRet			varchar2(8);
+	fContent		blob;
+	xmlDoc			XMLType;
+begin
+	begin
+		fContent	:= [RUNTIME]::[ZIP].get_file
+			( P_ZIPPED_BLOB	== P_ZIP
+			, P_FILE_NAME	== vFileName
+			);
+	exception
+		when others then
+			debug(vTB||'Ошибка при распаковке файла "'||vFileName||'".', 0);
+			return null;
+	end;
+
+	begin
+		xmlDoc	:= XMLType(fContent,871);
+	exception
+		when others then
+			debug(vTB||'Ошибка при приведении файла "'||vFileName||'" к типу XMLType.', 0);
+			return null;
+	end;
+
+
+	i	:= 0;
+	loop
+		i	:= i+1;
+		v	:= '/Types/Override['|| to_char(i,'TM9') || ']';
+
+		exit when xmlDoc.existsNode(v,vNS) = 0;
+
+		vContentType	:= xmlDoc.extract(v||'/@ContentType', vNS).getStringVal();
+		vPartName		:= xmlDoc.extract(v||'/@PartName'	, vNS).getStringVal();
+
+		case vPartName of
+		:'/word/document.xml':
+				case vContentType of
+				:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'	:	vRet := 'DOCX'; exit;
+				:'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml'	:	vRet := 'DOTX'; exit;
+				:'application/vnd.ms-word.document.macroEnabled.main+xml'							:	vRet := 'DOCM'; exit;
+				:'application/vnd.ms-word.template.macroEnabledTemplate.main+xml'					:	vRet := 'DOTM'; exit;
+				end;
+		:'/xl/workbook.xml':
+				case vContentType of
+				:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml'		:	vRet := 'XLSX'; exit;
+				:'application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml'	:	vRet := 'XLTX'; exit;
+				:'application/vnd.ms-excel.sheet.macroEnabled.main+xml'								:	vRet := 'XLSM'; exit;
+				:'application/vnd.ms-excel.template.macroEnabled.main+xml'							:	vRet := 'XLTM'; exit;
+				end;
+		:'/ppt/presentation.xml':
+				case vContentType of
+				:'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml':	vRet := 'PPTX'; exit;
+				:'application/vnd.openxmlformats-officedocument.presentationml.template.main+xml'	:	vRet := 'POTX'; exit;
+				end;
+		end;
+	end loop;
+	return vRet;
+end;
+end;
