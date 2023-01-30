@@ -1,0 +1,12 @@
+@dictionary
+@entity('TYPE')
+@name('Расширения и перекрытия. Точки вызова')
+class APPAUX_CALLPOINT {
+	@name('Код')                      CODE       [STRING_64];
+	@name('Наименование')             NAME       [STRING_250];
+	@name('Короткое имя метода')      HOOK_SNAME [STRING_35];
+	@name('Методы')                   METHODS    [AUXAPP_METHO_ARR];
+	@name('Обработка окончания')      RES_HANDLE [SHORT2];
+	@name('Требуется перекомпиляция') COMPILE    [BOOLEAN];
+	@name('Версия')                   VERSION    [DIG_6_2];
+}
